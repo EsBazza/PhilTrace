@@ -427,12 +427,23 @@ export default function ProjectInspectionDrawer({
                         <p className="text-xs text-gray-800 leading-relaxed">{r.comment}</p>
 
                         {r.photoUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={r.photoUrl}
-                            alt="Ground observation"
-                            className="h-28 w-full object-cover rounded-lg border border-gray-200"
-                          />
+                          <a
+                            href={r.photoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block overflow-hidden rounded-lg border border-gray-200 hover:border-blue-500 transition group relative"
+                            title="Click to view full photo"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={r.photoUrl}
+                              alt="Ground observation"
+                              className="h-32 w-full object-cover group-hover:scale-105 transition duration-200"
+                            />
+                            <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded backdrop-blur-xs font-bold flex items-center gap-1">
+                              <span>🔍</span> View Full
+                            </span>
+                          </a>
                         )}
 
                         <div className="flex items-center justify-between pt-1 border-t border-gray-50 text-[11px]">

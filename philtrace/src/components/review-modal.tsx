@@ -28,6 +28,8 @@ export default function ReviewModal({
   const [workersActive, setWorkersActive] = useState<boolean>(true);
   const [comment, setComment] = useState<string>('');
   const [photoUrl, setPhotoUrl] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [phone, setPhone] = useState<string>('+639000000000');
   const [otp, setOtp] = useState<string>('123456');
   const [otpSent, setOtpSent] = useState<boolean>(false);
@@ -74,10 +76,67 @@ export default function ReviewModal({
       requestGeolocation();
       setErrorMsg(null);
       setOtpSent(false);
+      setPhotoUrl('');
+      setPreviewUrl(null);
+      setIsUploadingPhoto(false);
     }
   }, [isOpen, requestGeolocation]);
 
   if (!isOpen) return null;
+
+  // Handle Photo File Upload
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg('Please select a valid image file (JPG, PNG, WebP, etc.).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg('Image size exceeds 10MB limit. Please select a smaller photo.');
+      return;
+    }
+
+    // Set immediate client-side preview
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+    setIsUploadingPhoto(true);
+    setErrorMsg(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setPhotoUrl(data.url);
+      } else {
+        setErrorMsg(data.error || 'Failed to upload photo. Please try again.');
+        setPreviewUrl(null);
+        setPhotoUrl('');
+      }
+    } catch (err: any) {
+      console.error('Photo upload error:', err);
+      setErrorMsg('Network error while uploading photo.');
+      setPreviewUrl(null);
+      setPhotoUrl('');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl('');
+    setPreviewUrl(null);
+    setIsUploadingPhoto(false);
+  };
 
   // Calculate distance & 15km eligibility
   const hasProjectCoords = projectLat !== undefined && projectLng !== undefined && projectLat !== 0 && projectLng !== 0;
@@ -364,16 +423,63 @@ export default function ReviewModal({
             />
           </div>
 
-          {/* Photo URL (Optional) */}
-          <div className="space-y-1">
-            <label className="font-medium text-gray-600">Ground Photo URL (Optional):</label>
-            <input
-              type="url"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://imgur.com/photo.jpg or image link"
-              className="w-full rounded-xl border border-gray-300 p-2 text-xs text-gray-900"
-            />
+          {/* Ground Photo Image Upload (Optional) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-gray-700">📸 Ground Photo Proof (Optional):</label>
+              {photoUrl && (
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  ✓ Photo Attached
+                </span>
+              )}
+            </div>
+
+            {previewUrl || photoUrl ? (
+              <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-900 group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl || photoUrl}
+                  alt="Ground preview"
+                  className="h-36 w-full object-cover"
+                />
+                {isUploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-xs font-bold gap-2">
+                    <span className="animate-spin">⏳</span> Uploading image...
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    disabled={isUploadingPhoto}
+                    className="rounded-full bg-red-600/90 text-white p-1 hover:bg-red-700 shadow-md transition disabled:opacity-50"
+                    title="Remove Photo"
+                  >
+                    <span className="text-xs px-1 font-bold">✕</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label
+                className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/80 p-4 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/40 transition ${
+                  isUploadingPhoto ? 'opacity-50 pointer-events-none' : ''
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <span className="text-2xl mb-1">📷</span>
+                <span className="font-bold text-gray-800 text-xs">
+                  {isUploadingPhoto ? 'Uploading image...' : 'Click to Upload Ground Photo'}
+                </span>
+                <span className="text-[10px] text-gray-400 mt-0.5">
+                  Supports JPG, PNG, WebP or camera capture (Max 10MB)
+                </span>
+              </label>
+            )}
           </div>
 
           {/* Phone Verification Section (1 OTP = 1 Review) */}
@@ -429,11 +535,13 @@ export default function ReviewModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !isEligibleByDistance}
+              disabled={isSubmitting || isUploadingPhoto || !isEligibleByDistance}
               className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting
                 ? 'Verifying & Submitting...'
+                : isUploadingPhoto
+                ? 'Uploading Photo...'
                 : !isEligibleByDistance
                 ? 'Location Restricted (&gt; 15 km)'
                 : 'Submit Verified Review ⭐'}
