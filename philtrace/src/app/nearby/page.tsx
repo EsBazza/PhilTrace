@@ -54,7 +54,13 @@ function getStatusColor(project: NearbyProject) {
 }
 
 /** Haversine distance in km between two lat/lng pairs */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+function haversineKm(lat1Raw: number, lng1Raw: number, lat2Raw: number, lng2Raw: number): number {
+  const lat1 = Number(lat1Raw);
+  const lng1 = Number(lng1Raw);
+  const lat2 = Number(lat2Raw);
+  const lng2 = Number(lng2Raw);
+  if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) return 999999;
+
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
@@ -118,20 +124,21 @@ export default function NearbyPage() {
   const { data, isLoading } = useNearbyProjects(lat, lng, radius);
   const allProjects = (data?.projects as NearbyProject[]) ?? [];
 
-  const projects = allProjects.filter((p) => {
-    // Exclude projects missing GPS or strictly farther than the chosen radius
-    if (!p.gpsLat || !p.gpsLng) return false;
-    if (lat !== null && lng !== null) {
-      const d = p.distance !== undefined && !isNaN(Number(p.distance))
-        ? Number(p.distance)
-        : haversineKm(lat, lng, Number(p.gpsLat), Number(p.gpsLng));
-      if (d > radius) return false;
-    }
-    if (selectedCategory !== 'All' && !p.category.toLowerCase().includes(selectedCategory.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+  const projects = allProjects
+    .map((p) => {
+      const dist = lat !== null && lng !== null && p.gpsLat && p.gpsLng
+        ? haversineKm(lat, lng, p.gpsLat, p.gpsLng)
+        : Number(p.distance ?? 999999);
+      return { ...p, distance: dist };
+    })
+    .filter((p) => {
+      if (!p.gpsLat || !p.gpsLng) return false;
+      if (lat !== null && lng !== null && p.distance > radius) return false;
+      if (selectedCategory !== 'All' && !p.category.toLowerCase().includes(selectedCategory.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
 
   // ─── Mapbox Init ──────────────────────────────────────────────────────────
   useEffect(() => {
