@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         { name: { contains: q, mode: 'insensitive' } },
         { id: { contains: q, mode: 'insensitive' } },
         { contractorRaw: { contains: q, mode: 'insensitive' } },
+        { province: { name: { contains: q, mode: 'insensitive' } } },
       ];
     }
 
