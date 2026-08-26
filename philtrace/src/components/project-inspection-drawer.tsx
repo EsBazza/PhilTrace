@@ -66,8 +66,9 @@ export default function ProjectInspectionDrawer({
       const res = await fetch(`/api/projects/${id}`);
       if (res.ok) {
         const data = await res.json();
-        setProject(data.project);
-        setAiSummary(data.project.aiSummary || null);
+        const proj = data.project || data;
+        setProject(proj);
+        setAiSummary(proj?.aiSummary || null);
       }
 
       const rRes = await fetch(`/api/reviews?projectId=${id}`);
