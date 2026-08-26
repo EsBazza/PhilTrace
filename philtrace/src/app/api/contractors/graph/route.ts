@@ -56,6 +56,8 @@ export async function GET() {
       }
     }
 
+    const nodeIds = new Set(contractors.map((c) => c.name));
+
     const nodes: CytoscapeNode[] = contractors.map((c) => ({
       data: {
         id: c.name,
@@ -71,14 +73,16 @@ export async function GET() {
     const edges: CytoscapeEdge[] = [];
     for (const [key, weight] of edgeMap) {
       const [source, target] = key.split('|||');
-      edges.push({
-        data: {
-          id: `${source}-${target}`,
-          source,
-          target,
-          weight,
-        },
-      });
+      if (nodeIds.has(source) && nodeIds.has(target)) {
+        edges.push({
+          data: {
+            id: `${source}-${target}`,
+            source,
+            target,
+            weight,
+          },
+        });
+      }
     }
 
     return Response.json({ nodes, edges });
