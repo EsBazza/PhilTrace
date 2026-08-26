@@ -53,6 +53,17 @@ function getStatusColor(project: NearbyProject) {
   return '#10b981';
 }
 
+/** Haversine distance in km between two lat/lng pairs */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function NearbyPage() {
   const router = useRouter();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +187,8 @@ export default function NearbyPage() {
 
     for (const p of projects) {
       if (!p.gpsLat || !p.gpsLng) continue;
+      // Client-side radius guard: skip any pin whose GPS is outside chosen radius
+      if (lat !== null && lng !== null && haversineKm(lat, lng, p.gpsLat, p.gpsLng) > radius) continue;
       const color = getStatusColor(p);
       const el = document.createElement('div');
       el.style.cssText = `

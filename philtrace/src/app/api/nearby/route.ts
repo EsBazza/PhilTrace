@@ -21,21 +21,30 @@ export async function GET(request: NextRequest) {
         p.*,
         (
           6371 * acos(
-            cos(radians(${lat})) * cos(radians(p."gpsLat")) *
-            cos(radians(p."gpsLng") - radians(${lng})) +
-            sin(radians(${lat})) * sin(radians(p."gpsLat"))
+            LEAST(1.0, GREATEST(-1.0,
+              cos(radians(${lat})) * cos(radians(p."gpsLat")) *
+              cos(radians(p."gpsLng") - radians(${lng})) +
+              sin(radians(${lat})) * sin(radians(p."gpsLat"))
+            ))
           )
         ) AS distance
       FROM "Project" p
-      WHERE (
-        6371 * acos(
-          cos(radians(${lat})) * cos(radians(p."gpsLat")) *
-          cos(radians(p."gpsLng") - radians(${lng})) +
-          sin(radians(${lat})) * sin(radians(p."gpsLat"))
-        )
-      ) <= ${radius}
+      WHERE 
+        p."gpsLat" IS NOT NULL
+        AND p."gpsLng" IS NOT NULL
+        AND p."gpsLat" != 0
+        AND p."gpsLng" != 0
+        AND (
+          6371 * acos(
+            LEAST(1.0, GREATEST(-1.0,
+              cos(radians(${lat})) * cos(radians(p."gpsLat")) *
+              cos(radians(p."gpsLng") - radians(${lng})) +
+              sin(radians(${lat})) * sin(radians(p."gpsLat"))
+            ))
+          )
+        ) <= ${radius}
       ORDER BY distance ASC
-      LIMIT 50
+      LIMIT 200
     `;
 
     return Response.json({ projects });
