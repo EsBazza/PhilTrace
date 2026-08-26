@@ -29,9 +29,7 @@ export function Header() {
           <Link href="/contractors" className="hidden sm:inline text-gray-600 hover:text-blue-700 whitespace-nowrap">
             🏢 Contractors
           </Link>
-          <Link href="/agency" className="text-gray-400 hover:text-gray-700 whitespace-nowrap text-xs">
-            Agency
-          </Link>
+
         </nav>
       </div>
 
