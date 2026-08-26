@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 
 export function MainLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isFullscreenRoute = pathname === '/map';
+  const isFullscreenRoute = pathname === '/map' || pathname === '/nearby';
 
   if (isFullscreenRoute) {
     return (
