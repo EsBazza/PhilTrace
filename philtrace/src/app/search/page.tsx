@@ -568,7 +568,7 @@ function SearchContent() {
                   return (
                     <Link
                       key={project.id}
-                      href={`/projects/${project.id}`}
+                      href={`/map?project=${project.id}`}
                       className="group flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-blue-400 hover:shadow-md transition-all"
                     >
                       <div>

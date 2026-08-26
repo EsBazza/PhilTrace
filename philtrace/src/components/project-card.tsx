@@ -20,7 +20,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <Link
-      href={`/projects/${project.id}`}
+      href={`/map?project=${project.id}`}
       className="block rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-2">

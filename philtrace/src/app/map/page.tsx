@@ -132,12 +132,36 @@ function MapContent() {
   useEffect(() => {
     const r = searchParams.get('region');
     const p = searchParams.get('province');
+    const projId = searchParams.get('project') || searchParams.get('projectId');
     if (r) {
       setSelectedRegion(r);
       setMapMode('drill_down');
     }
     if (p) setSelectedProvince(p);
+    if (projId) {
+      setSelectedProjectId(projId);
+    }
   }, [searchParams]);
+
+  // Fly map camera directly to project coordinates when selectedProjectId changes
+  useEffect(() => {
+    if (!selectedProjectId || !isMapLoaded || !mapRef.current) return;
+
+    fetch(`/api/projects/${selectedProjectId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const p = data?.project || data;
+        if (p?.gpsLat && p?.gpsLng && mapRef.current) {
+          mapRef.current.flyTo({
+            center: [p.gpsLng, p.gpsLat],
+            zoom: 14.5,
+            pitch: 30,
+            duration: 1600,
+          });
+        }
+      })
+      .catch(console.error);
+  }, [selectedProjectId, isMapLoaded]);
 
   // Load Hierarchy
   useEffect(() => {
