@@ -34,6 +34,7 @@ export default function FullscreenMapPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const popupsRef = useRef<mapboxgl.Popup[]>([]);
 
   // Modes & UI State
   const [mapMode, setMapMode] = useState<'free_roam' | 'drill_down'>('free_roam');
@@ -96,7 +97,7 @@ export default function FullscreenMapPage() {
     };
   }, [basemap]);
 
-  // Load & Render Dynamic Project GeoJSON Layers (Heatmap + Clusters + Pins)
+  // Load & Render Dynamic Project Pins and Hover Previews
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -117,165 +118,13 @@ export default function FullscreenMapPage() {
       const data = await res.json();
       const projects = data.projects || [];
 
-      // Clear existing DOM markers
+      // Clear existing markers & popups
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      popupsRef.current.forEach((p) => p.remove());
+      popupsRef.current = [];
 
-      // Convert projects to GeoJSON
-      const geojson: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: projects
-          .filter((p: any) => p.gpsLat && p.gpsLng && !isNaN(p.gpsLat) && !isNaN(p.gpsLng))
-          .map((p: any) => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [p.gpsLng, p.gpsLat],
-            },
-            properties: {
-              id: p.id,
-              name: p.name,
-              budgetPHP: p.budgetPHP,
-              progress: p.progress,
-              status: p.status,
-              contractor: p.contractorRaw,
-              province: p.province?.name || '',
-              isLive: p.isLive,
-              flagOverdue: p.flagOverdue,
-              flagOverpaid: p.flagOverpaid,
-              avgRating: p.avgRating || 0,
-            },
-          })),
-      };
-
-      // Add / Update GeoJSON source
-      if (map.getSource('dpwh-projects')) {
-        (map.getSource('dpwh-projects') as mapboxgl.GeoJSONSource).setData(geojson);
-      } else {
-        map.addSource('dpwh-projects', {
-          type: 'geojson',
-          data: geojson,
-          cluster: true,
-          clusterMaxZoom: 12,
-          clusterRadius: 50,
-        });
-
-        // 1. Heatmap Layer (Visible at low zoom)
-        map.addLayer({
-          id: 'projects-heat',
-          type: 'heatmap',
-          source: 'dpwh-projects',
-          maxzoom: 11,
-          paint: {
-            'heatmap-weight': [
-              'interpolate',
-              ['linear'],
-              ['get', heatmapMetric === 'budget' ? 'budgetPHP' : 'progress'],
-              0, 0,
-              100000000, 1,
-            ],
-            'heatmap-intensity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              0, 1,
-              11, 3,
-            ],
-            'heatmap-color': [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0, 'rgba(33,102,172,0)',
-              0.2, 'rgb(103,169,207)',
-              0.4, 'rgb(209,229,240)',
-              0.6, 'rgb(253,219,199)',
-              0.8, 'rgb(239,138,98)',
-              1, 'rgb(178,24,43)',
-            ],
-            'heatmap-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              0, 4,
-              11, 24,
-            ],
-            'heatmap-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              7, 0.8,
-              11, 0,
-            ],
-          },
-        });
-
-        // 2. Cluster Circles (Zoom 8 - 12)
-        map.addLayer({
-          id: 'clusters',
-          type: 'circle',
-          source: 'dpwh-projects',
-          filter: ['has', 'point_count'],
-          paint: {
-            'circle-color': [
-              'step',
-              ['get', 'point_count'],
-              '#3b82f6',
-              20, '#f59e0b',
-              100, '#ef4444',
-            ],
-            'circle-radius': [
-              'step',
-              ['get', 'point_count'],
-              16,
-              20, 22,
-              100, 30,
-            ],
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
-
-        // 3. Cluster Count Numbers
-        map.addLayer({
-          id: 'cluster-count',
-          type: 'symbol',
-          source: 'dpwh-projects',
-          filter: ['has', 'point_count'],
-          layout: {
-            'text-field': ['get', 'point_count_abbreviated'],
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-size': 12,
-          },
-          paint: {
-            'text-color': '#ffffff',
-          },
-        });
-
-        // Click on cluster zooms in
-        map.on('click', 'clusters', (e) => {
-          const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-          const clusterId = features[0]?.properties?.cluster_id;
-          (map.getSource('dpwh-projects') as mapboxgl.GeoJSONSource).getClusterExpansionZoom(
-            clusterId,
-            (err, zoom) => {
-              if (err || !zoom) return;
-              map.easeTo({
-                center: (features[0].geometry as any).coordinates,
-                zoom,
-              });
-            }
-          );
-        });
-
-        map.on('mouseenter', 'clusters', () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', 'clusters', () => {
-          map.getCanvas().style.cursor = '';
-        });
-      }
-
-      // Add individual interactive DOM Markers for high precision
+      // Add individual interactive DOM Markers with working HOVER preview
       for (const p of projects) {
         if (!p.gpsLat || !p.gpsLng) continue;
 
@@ -291,43 +140,66 @@ export default function FullscreenMapPage() {
             ? '#3b82f6'
             : '#10b981';
         el.style.border = '2px solid white';
-        el.style.boxShadow = '0 0 8px rgba(0,0,0,0.6)';
+        el.style.boxShadow = '0 0 10px rgba(0,0,0,0.65)';
         el.style.cursor = 'pointer';
         el.style.transition = 'transform 0.15s ease';
 
-        el.addEventListener('mouseenter', () => {
-          el.style.transform = 'scale(1.4)';
-        });
-        el.addEventListener('mouseleave', () => {
-          el.style.transform = 'scale(1)';
-        });
-
-        const popup = new mapboxgl.Popup({ offset: 14, closeButton: false }).setHTML(`
-          <div style="font-family: sans-serif; padding: 6px; max-width: 240px;">
-            <div style="font-size: 9px; font-weight: 800; color: #6b7280; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</div>
-            <div style="font-size: 11px; font-weight: bold; margin-top: 2px; color: #111827; line-height: 1.3;">${p.name.slice(0, 70)}...</div>
-            <div style="font-size: 11px; margin-top: 4px; color: #374151;"><strong>Budget:</strong> ${formatCurrency(p.budgetPHP)}</div>
-            <div style="font-size: 11px; color: #374151;"><strong>Progress:</strong> ${p.progress.toFixed(1)}%</div>
-            <div style="font-size: 10px; color: #f59e0b; margin-top: 2px; font-weight: bold;">⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews yet'}</div>
-            <div style="display: inline-block; margin-top: 6px; font-size: 11px; color: #2563eb; font-weight: 700;">Click to Inspect & Rate &rarr;</div>
+        // High-fidelity Google Maps-style Hover Tooltip
+        const popup = new mapboxgl.Popup({
+          offset: 16,
+          closeButton: false,
+          closeOnClick: false,
+          className: 'project-preview-popup',
+        }).setHTML(`
+          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 8px; max-width: 250px; background: #ffffff; border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
+              <span style="font-size: 9px; font-weight: 800; color: #4b5563; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
+              <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#10b981' : '#f59e0b'}; background: #f3f4f6; padding: 1px 5px; border-radius: 4px;">${p.status}</span>
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: #111827; line-height: 1.35; margin-top: 2px;">${p.name.slice(0, 75)}...</div>
+            <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+              <span style="color: #6b7280;">Budget:</span>
+              <span style="font-weight: 800; color: #111827;">${formatCurrency(p.budgetPHP)}</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 2px;">
+              <span style="color: #6b7280;">Progress:</span>
+              <span style="font-weight: 700; color: #2563eb;">${p.progress.toFixed(1)}%</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 4px; color: #d97706; font-weight: 700;">
+              <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
+              <span style="color: #2563eb; font-weight: 800;">Click to Inspect &rarr;</span>
+            </div>
           </div>
         `);
 
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat([p.gpsLng, p.gpsLat])
-          .setPopup(popup)
-          .addTo(map);
+        // Hover Event Listeners
+        el.addEventListener('mouseenter', () => {
+          el.style.transform = 'scale(1.4)';
+          popup.setLngLat([p.gpsLng, p.gpsLat]).addTo(map);
+        });
 
+        el.addEventListener('mouseleave', () => {
+          el.style.transform = 'scale(1)';
+          popup.remove();
+        });
+
+        // Click opens Project Drawer
         el.addEventListener('click', () => {
+          popup.remove();
           setSelectedProjectId(p.id);
         });
 
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([p.gpsLng, p.gpsLat])
+          .addTo(map);
+
         markersRef.current.push(marker);
+        popupsRef.current.push(popup);
       }
     } catch (err) {
       console.error('Error rendering map layers:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, heatmapMetric]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery]);
 
   useEffect(() => {
     renderMapLayers();
@@ -347,7 +219,6 @@ export default function FullscreenMapPage() {
       return;
     }
 
-    // Zoom to specific region coordinates
     const regionCenters: Record<string, [number, number]> = {
       'National Capital Region': [121.0, 14.6],
       'Region III': [120.6, 15.2],
@@ -466,31 +337,19 @@ export default function FullscreenMapPage() {
           )}
         </div>
 
-        {/* Right: Basemap & Heatmap Toggles */}
+        {/* Right: Basemap Switcher & Anomaly Filter */}
         <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-          {/* Heatmap Metric */}
-          {mapMode === 'free_roam' && (
-            <div className="flex items-center rounded-xl bg-black/80 p-1 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white">
-              <button
-                onClick={() => setHeatmapMetric('budget')}
-                className={`rounded-lg px-2.5 py-1 transition ${
-                  heatmapMetric === 'budget' ? 'bg-amber-600 text-white' : 'text-gray-300'
-                }`}
-                title="Heatmap by Public Budget (₱)"
-              >
-                💰 Budget Heat
-              </button>
-              <button
-                onClick={() => setHeatmapMetric('count')}
-                className={`rounded-lg px-2.5 py-1 transition ${
-                  heatmapMetric === 'count' ? 'bg-blue-600 text-white' : 'text-gray-300'
-                }`}
-                title="Heatmap by Contract Count"
-              >
-                📊 Density
-              </button>
-            </div>
-          )}
+          {/* Quick Anomaly Filter */}
+          <select
+            value={filterAnomaly}
+            onChange={(e) => setFilterAnomaly(e.target.value)}
+            className="rounded-xl bg-black/80 px-3 py-1.5 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white focus:outline-none"
+          >
+            <option value="All">All Projects</option>
+            <option value="overdue">⚠️ Overdue Only</option>
+            <option value="overpaid">🚨 Overpaid Only</option>
+            <option value="neverStarted">⏳ Never Started</option>
+          </select>
 
           {/* Basemap Switcher */}
           <div className="flex items-center rounded-xl bg-black/80 p-1 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white">
