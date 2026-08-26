@@ -15,7 +15,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Haversine formula in raw SQL for PostgreSQL
+    // Bounding Box Pre-Filter: drastically speeds up queries on large datasets (240k+ rows)
+    const latDelta = (radius + 2) / 110.574;
+    const lngDelta = (radius + 2) / (111.32 * Math.cos((lat * Math.PI) / 180));
+    const minLat = lat - latDelta;
+    const maxLat = lat + latDelta;
+    const minLng = lng - lngDelta;
+    const maxLng = lng + lngDelta;
+
+    // Haversine formula with bounding box pre-filter
     const projects = await prisma.$queryRaw`
       SELECT 
         p.*,
@@ -30,10 +38,8 @@ export async function GET(request: NextRequest) {
         ) AS distance
       FROM "Project" p
       WHERE 
-        p."gpsLat" IS NOT NULL
-        AND p."gpsLng" IS NOT NULL
-        AND p."gpsLat" != 0
-        AND p."gpsLng" != 0
+        p."gpsLat" BETWEEN ${minLat} AND ${maxLat}
+        AND p."gpsLng" BETWEEN ${minLng} AND ${maxLng}
         AND (
           6371 * acos(
             LEAST(1.0, GREATEST(-1.0,

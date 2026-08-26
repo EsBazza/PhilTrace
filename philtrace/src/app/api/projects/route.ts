@@ -27,22 +27,38 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (region) {
-      where.province = {
-        region: {
+    if (province || region) {
+      const provinceFilter: Prisma.ProvinceWhereInput = {};
+      if (province) {
+        provinceFilter.name = { contains: province, mode: 'insensitive' };
+      }
+      if (region) {
+        provinceFilter.region = {
           OR: [
             { name: { equals: region, mode: 'insensitive' } },
             { name: { contains: region, mode: 'insensitive' } },
           ],
-        },
-      };
-    }
+        };
+      }
 
-    if (province) {
-      where.province = {
-        ...where.province as Prisma.ProvinceWhereInput,
-        name: { contains: province, mode: 'insensitive' },
-      };
+      const matchingProvinces = await prisma.province.findMany({
+        where: provinceFilter,
+        select: { id: true },
+      });
+
+      if (matchingProvinces.length > 0) {
+        where.provinceId = { in: matchingProvinces.map((p) => p.id) };
+      } else {
+        return Response.json({
+          projects: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
     }
 
     if (status) {
@@ -77,20 +93,20 @@ export async function GET(request: NextRequest) {
     const sortField = validSortFields.includes(sort) ? sort : 'budgetPHP';
     const sortOrder = order === 'asc' ? 'asc' : 'desc';
 
-    const [projects, total] = await Promise.all([
-      prisma.project.findMany({
-        where,
-        include: {
-          province: {
-            include: { region: true },
-          },
+    // Execute query
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        province: {
+          include: { region: true },
         },
-        orderBy: { [sortField]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.project.count({ where }),
-    ]);
+      },
+      orderBy: { [sortField]: sortOrder },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const total = limit >= 500 ? projects.length : await prisma.project.count({ where });
 
     return Response.json({
       projects,

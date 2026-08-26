@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { isWithinReviewRadius, MAX_REVIEW_RADIUS_KM } from '@/lib/geo';
 
 interface ReviewModalProps {
   projectId: string;
   projectName: string;
+  projectLat?: number;
+  projectLng?: number;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -13,6 +16,8 @@ interface ReviewModalProps {
 export default function ReviewModal({
   projectId,
   projectName,
+  projectLat,
+  projectLng,
   isOpen,
   onClose,
   onSuccess,
@@ -29,12 +34,71 @@ export default function ReviewModal({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // GPS Geolocation State
+  const [userLat, setUserLat] = useState<number | null>(null);
+  const [userLng, setUserLng] = useState<number | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'granted' | 'denied' | 'unsupported'>('idle');
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  const requestGeolocation = useCallback(() => {
+    if (!('geolocation' in navigator)) {
+      setGeoStatus('unsupported');
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setGeoStatus('locating');
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
+        setGeoStatus('granted');
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        setGeoStatus('denied');
+        setGeoError(
+          err.code === 1
+            ? 'Location access was denied. Please enable location permissions in your browser to rate this project.'
+            : 'Unable to acquire GPS location. Please check your device location settings.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      requestGeolocation();
+      setErrorMsg(null);
+      setOtpSent(false);
+    }
+  }, [isOpen, requestGeolocation]);
+
   if (!isOpen) return null;
+
+  // Calculate distance & 15km eligibility
+  const hasProjectCoords = projectLat !== undefined && projectLng !== undefined && projectLat !== 0 && projectLng !== 0;
+  const hasUserCoords = userLat !== null && userLng !== null;
+
+  const geoCheck =
+    hasProjectCoords && hasUserCoords
+      ? isWithinReviewRadius(userLat, userLng, projectLat, projectLng, MAX_REVIEW_RADIUS_KM)
+      : null;
+
+  const isEligibleByDistance = geoCheck ? geoCheck.isWithin : false;
 
   const handleSendOtp = async () => {
     setErrorMsg(null);
-    if (!phone || phone.length < 10) {
+    if (!phone || phone.trim().length < 10) {
       setErrorMsg('Please enter a valid Philippine mobile number (+63...)');
+      return;
+    }
+
+    if (!isEligibleByDistance) {
+      setErrorMsg(`You must be within ${MAX_REVIEW_RADIUS_KM} km of the project site to request an OTP and submit a rating.`);
       return;
     }
 
@@ -42,16 +106,17 @@ export default function ReviewModal({
       const res = await fetch('/api/report/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: phone.trim(), projectId }),
       });
+
+      const data = await res.json();
       if (res.ok) {
         setOtpSent(true);
       } else {
-        const d = await res.json();
-        setErrorMsg(d.error || 'Failed to dispatch OTP. (Use Demo +639000000000)');
+        setErrorMsg(data.error || 'Failed to dispatch OTP. (Use Demo +639000000000)');
       }
     } catch {
-      setOtpSent(true);
+      setErrorMsg('Network error while requesting verification OTP.');
     }
   };
 
@@ -59,11 +124,23 @@ export default function ReviewModal({
     e.preventDefault();
     setErrorMsg(null);
 
+    if (!hasUserCoords) {
+      setErrorMsg('GPS location is required to verify that you are within 15 km of the project site.');
+      return;
+    }
+
+    if (!isEligibleByDistance) {
+      setErrorMsg(
+        `Distance restriction: You are ${geoCheck?.distanceKm} km away. Ratings are limited to within ${MAX_REVIEW_RADIUS_KM} km.`
+      );
+      return;
+    }
+
     if (!comment.trim()) {
       setErrorMsg('Please enter your observations or feedback.');
       return;
     }
-    if (!otp) {
+    if (!otp.trim()) {
       setErrorMsg('Please enter the 6-digit verification code.');
       return;
     }
@@ -81,17 +158,19 @@ export default function ReviewModal({
           workersActive,
           comment,
           photoUrl: photoUrl.trim() || undefined,
-          phone,
-          otp,
+          phone: phone.trim(),
+          otp: otp.trim(),
+          userLat,
+          userLng,
         }),
       });
 
+      const data = await res.json();
       if (res.ok) {
         onSuccess();
         onClose();
       } else {
-        const d = await res.json();
-        setErrorMsg(d.error || 'Failed to submit review. Check OTP code.');
+        setErrorMsg(data.error || 'Failed to submit review.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Submission error');
@@ -116,6 +195,86 @@ export default function ReviewModal({
           >
             ✕
           </button>
+        </div>
+
+        {/* ─── 15km Location Verification Status Banner ──────────────────── */}
+        <div className="mt-3">
+          {geoStatus === 'locating' && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-xs text-blue-800 flex items-center justify-between gap-2 animate-pulse">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🛰️</span>
+                <span>Verifying your GPS proximity to project site (15 km rule)...</span>
+              </div>
+            </div>
+          )}
+
+          {geoStatus === 'granted' && geoCheck && (
+            geoCheck.isWithin ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-xs text-emerald-900 flex items-center justify-between gap-2 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📍</span>
+                  <div>
+                    <div className="font-bold flex items-center gap-1">
+                      <span>Proximity Verified ({geoCheck.distanceKm} km away)</span>
+                      <span className="bg-emerald-200 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-black">
+                        &le; 15 km
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">
+                      You are within the 15 km local zone and eligible to submit a ground rating.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestGeolocation}
+                  className="text-[10px] underline text-emerald-700 hover:text-emerald-900 shrink-0 font-medium"
+                >
+                  Refresh
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-950 shadow-xs space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-bold text-rose-800">
+                    <span className="text-base">🚫</span>
+                    <span>Outside 15 km Rating Zone ({geoCheck.distanceKm} km away)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={requestGeolocation}
+                    className="text-[11px] font-bold text-rose-700 underline shrink-0 hover:text-rose-900"
+                  >
+                    Re-check GPS
+                  </button>
+                </div>
+                <p className="text-[11px] text-rose-800 leading-relaxed">
+                  To prevent fraudulent reviews, PhilTrace strictly limits project ratings to citizens located within <strong>15 km</strong> of the infrastructure site.
+                </p>
+              </div>
+            )
+          )}
+
+          {(geoStatus === 'denied' || geoStatus === 'unsupported') && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 font-bold text-amber-800">
+                  <span className="text-base">⚠️</span>
+                  <span>Location Access Required</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestGeolocation}
+                  className="rounded-lg bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-xs hover:bg-amber-700 transition"
+                >
+                  📡 Enable GPS
+                </button>
+              </div>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                {geoError || 'Please allow GPS location access in your browser to verify that you are within 15 km of this project.'}
+              </p>
+            </div>
+          )}
         </div>
 
         {errorMsg && (
@@ -217,11 +376,14 @@ export default function ReviewModal({
             />
           </div>
 
-          {/* Phone Verification Section */}
+          {/* Phone Verification Section (1 OTP = 1 Review) */}
           <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-blue-900">📱 Anti-Spam Phone Verification</span>
-              <span className="text-[10px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+              <div>
+                <span className="font-bold text-blue-900">📱 Anti-Fraud Phone Verification</span>
+                <p className="text-[10px] text-blue-700 mt-0.5">1 OTP code = 1 review per project</p>
+              </div>
+              <span className="text-[10px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-mono">
                 Demo: +639000000000 / 123456
               </span>
             </div>
@@ -237,7 +399,9 @@ export default function ReviewModal({
               <button
                 type="button"
                 onClick={handleSendOtp}
-                className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition"
+                disabled={!isEligibleByDistance}
+                className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!isEligibleByDistance ? 'Must be within 15 km of project to request OTP' : ''}
               >
                 {otpSent ? 'Resend OTP' : 'Send OTP'}
               </button>
@@ -265,10 +429,14 @@ export default function ReviewModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition disabled:opacity-50"
+              disabled={isSubmitting || !isEligibleByDistance}
+              className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Verifying & Submitting...' : 'Submit Verified Review ⭐'}
+              {isSubmitting
+                ? 'Verifying & Submitting...'
+                : !isEligibleByDistance
+                ? 'Location Restricted (&gt; 15 km)'
+                : 'Submit Verified Review ⭐'}
             </button>
           </div>
         </form>

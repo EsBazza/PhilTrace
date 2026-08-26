@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { formatCurrency } from '@/lib/format';
+import { isWithinReviewRadius, MAX_REVIEW_RADIUS_KM } from '@/lib/geo';
 import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 
 interface LocationHierarchy {
@@ -127,6 +128,19 @@ function MapContent() {
   const [selectedProvince, setSelectedProvince] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterAnomaly, setFilterAnomaly] = useState<string>('All');
+
+  // User GPS Location for 15km Rating Eligibility
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {},
+        { enableHighAccuracy: false, timeout: 8000 }
+      );
+    }
+  }, []);
 
   // Load URL search parameters if available
   useEffect(() => {
@@ -394,6 +408,11 @@ function MapContent() {
           el.style.transition = 'box-shadow 0.15s ease-in-out';
         }
 
+        const geoCheck =
+          userLocation && p.gpsLat && p.gpsLng
+            ? isWithinReviewRadius(userLocation.lat, userLocation.lng, p.gpsLat, p.gpsLng, MAX_REVIEW_RADIUS_KM)
+            : null;
+
         // Non-blocking Mapbox Popup
         const popup = new mapboxgl.Popup({
           offset: [0, isTarget ? -16 : -10],
@@ -417,6 +436,16 @@ function MapContent() {
               <span style="color: #94a3b8;">Progress:</span>
               <span style="font-weight: 700; color: #60a5fa;">${p.progress.toFixed(1)}%</span>
             </div>
+            ${
+              geoCheck
+                ? `
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 4px; padding: 2px 6px; border-radius: 6px; background: ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; border: 1px solid ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}; color: ${geoCheck.isWithin ? '#6ee7b7' : '#fcd34d'};">
+              <span>📍 ${geoCheck.distanceKm} km away</span>
+              <span style="font-weight: 700;">${geoCheck.isWithin ? '✓ Eligible to Rate' : '🔒 View Only (&gt;15km)'}</span>
+            </div>
+            `
+                : ''
+            }
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
               <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
               <span style="color: #38bdf8; font-weight: 800;">Inspecting &rarr;</span>
@@ -467,7 +496,7 @@ function MapContent() {
     } catch (err) {
       console.error('Error rendering map layers:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, selectedProjectId]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, selectedProjectId, userLocation]);
 
   useEffect(() => {
     renderMapLayers();

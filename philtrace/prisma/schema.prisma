@@ -75,9 +75,13 @@ model Review {
   photoUrl         String?
   phoneHash        String   // SHA-256 hashed phone number
   phoneVerified    Boolean  @default(false)
+  userLat          Float?   // Reviewer GPS Latitude at submission
+  userLng          Float?   // Reviewer GPS Longitude at submission
+  distanceKm       Float?   // Calculated distance from project site in KM
   corroborations   Int      @default(0)
   createdAt        DateTime @default(now())
 
+  @@unique([projectId, phoneHash])
   @@index([projectId])
   @@index([rating])
 }
@@ -128,10 +132,13 @@ model OtpCode {
   id        String   @id @default(cuid())
   phone     String
   code      String
+  projectId String?  // Specific project this OTP is requested for
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+
   @@index([phone, code])
+  @@index([phone, projectId])
 }
 
 model SyncLog {
