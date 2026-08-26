@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const flag = searchParams.get('flag');
     const province = searchParams.get('province');
     const page = parseInt(searchParams.get('page') ?? '1', 10);
-    const limit = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 100);
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 500);
     const sort = searchParams.get('sort') ?? 'budgetPHP';
     const order = searchParams.get('order') ?? 'desc';
     const q = searchParams.get('q') ?? searchParams.get('search');

@@ -71,72 +71,6 @@ const PROVINCE_CENTERS: Record<string, [number, number]> = {
   'Pangasinan': [120.33, 15.92],
 };
 
-// Convex Hull Helper Algorithm fallback
-function computeConvexHull(points: [number, number][]): [number, number][] {
-  if (points.length === 0) return [];
-  if (points.length <= 2) return points;
-
-  const sorted = [...points].sort((a, b) => (a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]));
-
-  const cross = (o: [number, number], a: [number, number], b: [number, number]) =>
-    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-
-  const lower: [number, number][] = [];
-  for (const p of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
-      lower.pop();
-    }
-    lower.push(p);
-  }
-
-  const upper: [number, number][] = [];
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const p = sorted[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
-      upper.pop();
-    }
-    upper.push(p);
-  }
-
-  lower.pop();
-  upper.pop();
-  return lower.concat(upper);
-}
-
-function padPolygon(points: [number, number][], paddingDegree: number = 0.035): [number, number][] {
-  if (points.length === 0) return [];
-  if (points.length === 1) {
-    const [cLng, cLat] = points[0];
-    const circle: [number, number][] = [];
-    for (let i = 0; i <= 12; i++) {
-      const angle = (i * 2 * Math.PI) / 12;
-      circle.push([cLng + Math.cos(angle) * paddingDegree * 1.2, cLat + Math.sin(angle) * paddingDegree]);
-    }
-    return circle;
-  }
-
-  let sumLng = 0;
-  let sumLat = 0;
-  for (const [lng, lat] of points) {
-    sumLng += lng;
-    sumLat += lat;
-  }
-  const cLng = sumLng / points.length;
-  const cLat = sumLat / points.length;
-
-  const padded = points.map(([lng, lat]) => {
-    const dx = lng - cLng;
-    const dy = lat - cLat;
-    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    return [lng + (dx / dist) * paddingDegree, lat + (dy / dist) * paddingDegree] as [number, number];
-  });
-
-  if (padded.length > 0) {
-    padded.push([padded[0][0], padded[0][1]]);
-  }
-  return padded;
-}
-
 function MapContent() {
   const searchParams = useSearchParams();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -151,7 +85,6 @@ function MapContent() {
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [regionGeoJson, setRegionGeoJson] = useState<any>(null);
-  const [provinceGeoJson, setProvinceGeoJson] = useState<any>(null);
 
   // Drill-down State
   const [hierarchy, setHierarchy] = useState<LocationHierarchy | null>(null);
@@ -187,16 +120,6 @@ function MapContent() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) setRegionGeoJson(data);
-      })
-      .catch(console.error);
-  }, []);
-
-  // Load Official PH Province GeoJSON
-  useEffect(() => {
-    fetch('/data/ph-provinces.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setProvinceGeoJson(data);
       })
       .catch(console.error);
   }, []);
@@ -237,7 +160,7 @@ function MapContent() {
     };
   }, [basemap]);
 
-  // Add / Update Region Boundary Layers on Mapbox
+  // Render Region Outline Layer (Kept when choosing region)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded || !regionGeoJson) return;
@@ -245,9 +168,6 @@ function MapContent() {
     if (map.getLayer('ph-region-outline-layer')) map.removeLayer('ph-region-outline-layer');
     if (map.getLayer('ph-region-fill-layer')) map.removeLayer('ph-region-fill-layer');
     if (map.getSource('ph-region-source')) map.removeSource('ph-region-source');
-
-    // If a province is selected, hide region outline so ONLY province outline shows
-    if (selectedProvince) return;
 
     const enrichedFeatures = regionGeoJson.features.map((feature: any) => {
       const rawName = feature.properties?.REGION || feature.properties?.name || '';
@@ -271,6 +191,7 @@ function MapContent() {
       },
     });
 
+    // Translucent Region Fill Layer
     map.addLayer({
       id: 'ph-region-fill-layer',
       type: 'fill',
@@ -285,12 +206,13 @@ function MapContent() {
         'fill-opacity': [
           'case',
           ['boolean', ['get', 'isSelected'], false],
-          0.12,
-          selectedRegion ? 0.45 : 0,
+          0.15,
+          selectedRegion ? 0.4 : 0,
         ],
       },
     });
 
+    // Glowing Neon Region Outline Layer (Stays active for selected region)
     map.addLayer({
       id: 'ph-region-outline-layer',
       type: 'line',
@@ -316,16 +238,16 @@ function MapContent() {
         ],
       },
     });
-  }, [isMapLoaded, regionGeoJson, selectedRegion, selectedProvince]);
+  }, [isMapLoaded, regionGeoJson, selectedRegion]);
 
-  // Load & Render Dynamic Project Pins with Official Province Outlining
+  // Load & Render Dynamic Project Pins (ONLY show projects belonging to selected Region / City)
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
     try {
       const params = new URLSearchParams();
-      params.set('limit', '350');
+      params.set('limit', '500');
       if (selectedRegion) params.set('region', selectedRegion);
       if (selectedProvince) params.set('province', selectedProvince);
       if (filterCategory !== 'All') params.set('category', filterCategory);
@@ -338,7 +260,7 @@ function MapContent() {
       const data = await res.json();
       const allProjects = data.projects || [];
 
-      // Filter projects strictly based on selection
+      // Filter projects strictly based on user selection: ONLY show pins for selected Region / City
       const visibleProjects = allProjects.filter((p: any) => {
         if (!p.gpsLat || !p.gpsLng) return false;
         const pinRegion = p.province?.region?.name || '';
@@ -359,11 +281,11 @@ function MapContent() {
       popupsRef.current.forEach((p) => p.remove());
       popupsRef.current = [];
 
-      const cityProjectCoords: [number, number][] = [];
+      const visibleCoords: [number, number][] = [];
 
-      // Render visible project pins
+      // Render ONLY matching project pins
       for (const p of visibleProjects) {
-        cityProjectCoords.push([p.gpsLng, p.gpsLat]);
+        visibleCoords.push([p.gpsLng, p.gpsLat]);
 
         const statusColor =
           p.flagOverdue || p.flagOverpaid
@@ -372,7 +294,7 @@ function MapContent() {
             ? '#3b82f6'
             : '#10b981';
 
-        // Marker DOM Element
+        // Marker DOM Element (fixed 14x14 circular pin, anchored to exact lat/lng)
         const el = document.createElement('div');
         el.style.width = '14px';
         el.style.height = '14px';
@@ -429,98 +351,18 @@ function MapContent() {
         popupsRef.current.push(popup);
       }
 
-      // RENDER OFFICIAL ACCURATE PROVINCE OUTLINE BORDER (e.g. PAMPANGA / BATAAN / CEBU)
-      if (map.getLayer('city-outline-line')) map.removeLayer('city-outline-line');
-      if (map.getLayer('city-outline-fill')) map.removeLayer('city-outline-fill');
-      if (map.getSource('city-outline-source')) map.removeSource('city-outline-source');
-
-      if (selectedProvince) {
-        // Try finding official province feature in ph-provinces.json
-        let targetFeature = provinceGeoJson?.features?.find(
-          (f: any) =>
-            f.properties?.PROVINCE?.toLowerCase() === selectedProvince.toLowerCase() ||
-            f.properties?.NAME_1?.toLowerCase() === selectedProvince.toLowerCase()
-        );
-
-        let outlineGeoJson: GeoJSON.FeatureCollection;
+      // Smooth camera fit when province/city is selected
+      if (selectedProvince && visibleCoords.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
-
-        if (targetFeature) {
-          // Official Administrative Boundary Geometry!
-          outlineGeoJson = {
-            type: 'FeatureCollection',
-            features: [targetFeature],
-          };
-
-          const processCoords = (coords: any) => {
-            if (typeof coords[0] === 'number') {
-              bounds.extend(coords as [number, number]);
-            } else {
-              coords.forEach(processCoords);
-            }
-          };
-          processCoords(targetFeature.geometry.coordinates);
-        } else if (cityProjectCoords.length > 0) {
-          // Convex hull fallback if province feature not in GeoJSON
-          const hull = computeConvexHull(cityProjectCoords);
-          const paddedHull = padPolygon(hull, 0.035);
-
-          outlineGeoJson = {
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                properties: { name: selectedProvince },
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [paddedHull],
-                },
-              },
-            ],
-          };
-
-          paddedHull.forEach((pt) => bounds.extend(pt as [number, number]));
-        } else {
-          return;
-        }
-
-        map.addSource('city-outline-source', {
-          type: 'geojson',
-          data: outlineGeoJson,
-        });
-
-        // Translucent Glowing Fill
-        map.addLayer({
-          id: 'city-outline-fill',
-          type: 'fill',
-          source: 'city-outline-source',
-          paint: {
-            'fill-color': '#38bdf8',
-            'fill-opacity': 0.2,
-          },
-        });
-
-        // Bold Glowing Neon Blue Boundary Line
-        map.addLayer({
-          id: 'city-outline-line',
-          type: 'line',
-          source: 'city-outline-source',
-          paint: {
-            'line-color': '#00f0ff',
-            'line-width': 4.0,
-            'line-opacity': 1.0,
-          },
-        });
-
-        // Fit map view perfectly around official province boundary
+        visibleCoords.forEach((pt) => bounds.extend(pt));
         if (!bounds.isEmpty()) {
-          map.fitBounds(bounds, { padding: 80, duration: 1400 });
+          map.fitBounds(bounds, { padding: 90, duration: 1300 });
         }
       }
     } catch (err) {
       console.error('Error rendering map layers:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, provinceGeoJson]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery]);
 
   useEffect(() => {
     renderMapLayers();
