@@ -64,7 +64,7 @@ export default function NearbyPage() {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [radius, setRadius] = useState<number>(5);
-  const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'streets'>('dark');
+  const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'streets'>('satellite');
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'granted' | 'denied'>('idle');
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
@@ -163,26 +163,27 @@ export default function NearbyPage() {
     map.addLayer({ id: 'radius-circle-line', type: 'line', source: 'radius-circle', paint: { 'line-color': '#38bdf8', 'line-width': 2, 'line-dasharray': [3, 2] } });
   }, [isMapLoaded, lat, lng, radius]);
 
-  // ─── Project Pins ─────────────────────────────────────────────────────────
+  // ─── Project Pins: create once, never re-mount on hover ──────────────────
+  const pinElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
+    pinElsRef.current.clear();
 
     for (const p of projects) {
       if (!p.gpsLat || !p.gpsLng) continue;
-      const isHovered = hoveredProjectId === p.id;
-      const color = isHovered ? '#00f0ff' : getStatusColor(p);
-      const size = isHovered ? '18px' : '12px';
+      const color = getStatusColor(p);
       const el = document.createElement('div');
       el.style.cssText = `
-        width: ${size}; height: ${size}; border-radius: 50%;
+        width: 13px; height: 13px; border-radius: 50%;
         background: ${color}; border: 2px solid #fff;
-        box-shadow: 0 0 ${isHovered ? '24px #00f0ff, 0 0 40px #00f0ff66' : `10px ${color}`};
-        cursor: pointer; transition: all 0.15s ease;
-        pointer-events: auto;
+        box-shadow: 0 0 10px ${color}, 0 2px 6px rgba(0,0,0,0.7);
+        cursor: pointer; transition: box-shadow 0.15s ease, background 0.15s ease;
+        pointer-events: auto; position: relative;
       `;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -192,8 +193,24 @@ export default function NearbyPage() {
         .setLngLat([p.gpsLng, p.gpsLat])
         .addTo(map);
       markersRef.current.push(marker);
+      pinElsRef.current.set(p.id, el);
     }
-  }, [isMapLoaded, projects, hoveredProjectId, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMapLoaded, projects, router]);
+
+  // ─── Hover: update pin styles only, never re-mount markers ───────────────
+  useEffect(() => {
+    for (const [id, el] of pinElsRef.current.entries()) {
+      const project = projects.find((p) => p.id === id);
+      if (!project) continue;
+      const isHov = hoveredProjectId === id;
+      const color = getStatusColor(project);
+      el.style.background = isHov ? '#00f0ff' : color;
+      el.style.boxShadow = isHov
+        ? '0 0 22px #00f0ff, 0 0 38px rgba(0,240,255,0.5)'
+        : `0 0 10px ${color}, 0 2px 6px rgba(0,0,0,0.7)`;
+    }
+  }, [hoveredProjectId, projects]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
