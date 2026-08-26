@@ -29,14 +29,19 @@ export async function GET(request: NextRequest) {
 
     if (region) {
       where.province = {
-        region: { name: region },
+        region: {
+          OR: [
+            { name: { equals: region, mode: 'insensitive' } },
+            { name: { contains: region, mode: 'insensitive' } },
+          ],
+        },
       };
     }
 
     if (province) {
       where.province = {
         ...where.province as Prisma.ProvinceWhereInput,
-        name: province,
+        name: { contains: province, mode: 'insensitive' },
       };
     }
 

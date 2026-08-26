@@ -71,6 +71,25 @@ const PROVINCE_CENTERS: Record<string, [number, number]> = {
   'Pangasinan': [120.33, 15.92],
 };
 
+function isMatchingRegion(pinRegionName?: string, selectedRegionName?: string): boolean {
+  if (!selectedRegionName) return true;
+  if (!pinRegionName) return false;
+  const a = pinRegionName.toLowerCase();
+  const b = selectedRegionName.toLowerCase();
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  const mappedA = (REGION_NAME_MAP[pinRegionName] || pinRegionName).toLowerCase();
+  const mappedB = (REGION_NAME_MAP[selectedRegionName] || selectedRegionName).toLowerCase();
+  return mappedA === mappedB || mappedA.includes(mappedB) || mappedB.includes(mappedA);
+}
+
+function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: string): boolean {
+  if (!selectedProvinceName) return true;
+  if (!pinProvinceName) return false;
+  const a = pinProvinceName.toLowerCase();
+  const b = selectedProvinceName.toLowerCase();
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 function MapContent() {
   const searchParams = useSearchParams();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -172,7 +191,7 @@ function MapContent() {
     const enrichedFeatures = regionGeoJson.features.map((feature: any) => {
       const rawName = feature.properties?.REGION || feature.properties?.name || '';
       const dbName = REGION_NAME_MAP[rawName] || rawName;
-      const isSelected = selectedRegion && dbName === selectedRegion;
+      const isSelected = selectedRegion && isMatchingRegion(dbName, selectedRegion);
       return {
         ...feature,
         properties: {
@@ -240,7 +259,7 @@ function MapContent() {
     });
   }, [isMapLoaded, regionGeoJson, selectedRegion]);
 
-  // Load & Render Dynamic Project Pins (ONLY show projects belonging to selected Region / City)
+  // Load & Render Dynamic Project Pins (ONLY show projects belonging strictly to selected Region / City)
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -267,10 +286,10 @@ function MapContent() {
         const pinProvince = p.province?.name || '';
 
         if (selectedProvince) {
-          return pinProvince.toLowerCase() === selectedProvince.toLowerCase();
+          return isMatchingProvince(pinProvince, selectedProvince);
         }
         if (selectedRegion) {
-          return pinRegion.toLowerCase() === selectedRegion.toLowerCase();
+          return isMatchingRegion(pinRegion, selectedRegion);
         }
         return true;
       });
@@ -283,7 +302,7 @@ function MapContent() {
 
       const visibleCoords: [number, number][] = [];
 
-      // Render ONLY matching project pins with 100% fixed pixel positioning & non-blocking tooltip popups
+      // Render ONLY matching project pins with 100% fixed pixel positioning
       for (const p of visibleProjects) {
         visibleCoords.push([p.gpsLng, p.gpsLat]);
 
