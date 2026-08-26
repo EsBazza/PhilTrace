@@ -154,8 +154,8 @@ function MapContent() {
         if (p?.gpsLat && p?.gpsLng && mapRef.current) {
           mapRef.current.flyTo({
             center: [p.gpsLng, p.gpsLat],
-            zoom: 14.5,
-            pitch: 30,
+            zoom: 15.0,
+            pitch: 35,
             duration: 1600,
           });
         }
@@ -298,7 +298,7 @@ function MapContent() {
     });
   }, [isMapLoaded, regionGeoJson, selectedRegion]);
 
-  // Load & Render Dynamic Project Pins (ONLY show projects belonging strictly to selected Region / City)
+  // Load & Render Dynamic Project Pins (Highlighting searched target pin with glowing cyan ring)
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -318,7 +318,7 @@ function MapContent() {
       const data = await res.json();
       const allProjects = data.projects || [];
 
-      // Filter projects strictly based on user selection: ONLY show pins for selected Region / City
+      // Filter projects strictly based on user selection
       const visibleProjects = allProjects.filter((p: any) => {
         if (!p.gpsLat || !p.gpsLng) return false;
         const pinRegion = p.province?.region?.name || '';
@@ -333,6 +333,22 @@ function MapContent() {
         return true;
       });
 
+      // Ensure searched target project is ALWAYS included in visibleProjects even if filtered out
+      if (selectedProjectId && !visibleProjects.some((p: any) => p.id === selectedProjectId)) {
+        try {
+          const targetRes = await fetch(`/api/projects/${selectedProjectId}`);
+          if (targetRes.ok) {
+            const targetData = await targetRes.json();
+            const targetProj = targetData.project || targetData;
+            if (targetProj?.gpsLat && targetProj?.gpsLng) {
+              visibleProjects.unshift(targetProj);
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching searched target project:', e);
+        }
+      }
+
       // Clear existing markers & popups cleanly
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -341,9 +357,11 @@ function MapContent() {
 
       const visibleCoords: [number, number][] = [];
 
-      // Render ONLY matching project pins with 100% fixed pixel positioning
+      // Render matching project pins with prominent glowing highlight for searched target project
       for (const p of visibleProjects) {
         visibleCoords.push([p.gpsLng, p.gpsLat]);
+
+        const isTarget = selectedProjectId && p.id === selectedProjectId;
 
         const statusColor =
           p.flagOverdue || p.flagOverpaid
@@ -352,31 +370,45 @@ function MapContent() {
             ? '#3b82f6'
             : '#10b981';
 
-        // Marker DOM Element (fixed 14x14 circular pin, locked at exact lat/lng without scale transform jitter)
+        // Marker DOM Element
         const el = document.createElement('div');
-        el.style.width = '14px';
-        el.style.height = '14px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor = statusColor;
-        el.style.border = '2px solid #ffffff';
-        el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
-        el.style.cursor = 'pointer';
-        el.style.transition = 'box-shadow 0.15s ease-in-out';
+        if (isTarget) {
+          // Highlighted Target Pin: Bright cyan, larger size, glowing double shadow, pulse ring
+          el.style.width = '22px';
+          el.style.height = '22px';
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = '#00f0ff';
+          el.style.border = '3px solid #ffffff';
+          el.style.boxShadow = '0 0 25px #00f0ff, 0 0 45px #00f0ff, 0 4px 12px rgba(0,0,0,0.8)';
+          el.style.cursor = 'pointer';
+          el.style.zIndex = '50';
+        } else {
+          // Standard Pin: 14x14 fixed dot
+          el.style.width = '14px';
+          el.style.height = '14px';
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = statusColor;
+          el.style.border = '2px solid #ffffff';
+          el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
+          el.style.cursor = 'pointer';
+          el.style.transition = 'box-shadow 0.15s ease-in-out';
+        }
 
-        // Non-blocking Mapbox Popup (pointer-events: none prevents mouseleave flicker loops)
+        // Non-blocking Mapbox Popup
         const popup = new mapboxgl.Popup({
-          offset: [0, -10],
+          offset: [0, isTarget ? -16 : -10],
           closeButton: false,
           closeOnClick: false,
           anchor: 'bottom',
           className: 'pointer-events-none z-50',
         }).setHTML(`
-          <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #ffffff; font-family: system-ui, sans-serif; min-width: 220px; max-width: 260px; pointer-events: none;">
+          <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: ${isTarget ? '2px solid #00f0ff' : '1px solid rgba(255,255,255,0.15)'}; border-radius: 12px; padding: 10px; box-shadow: ${isTarget ? '0 0 30px rgba(0, 240, 255, 0.5)' : '0 10px 25px rgba(0,0,0,0.5)'}; color: #ffffff; font-family: system-ui, sans-serif; min-width: 230px; max-width: 270px; pointer-events: none;">
+            ${isTarget ? '<div style="font-size: 9px; font-weight: 900; color: #00f0ff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">📍 Target Searched Project</div>' : ''}
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
               <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
               <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
             </div>
-            <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 70)}...</div>
+            <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 75)}...</div>
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
               <span style="color: #94a3b8;">Budget:</span>
               <span style="font-weight: 800; color: #38bdf8;">${formatCurrency(p.budgetPHP)}</span>
@@ -387,19 +419,28 @@ function MapContent() {
             </div>
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
               <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
-              <span style="color: #38bdf8; font-weight: 800;">Click to Inspect &rarr;</span>
+              <span style="color: #38bdf8; font-weight: 800;">Inspecting &rarr;</span>
             </div>
           </div>
         `);
 
-        el.addEventListener('mouseenter', () => {
-          el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
+        // If this is the searched project, automatically display its tooltip popup on map
+        if (isTarget) {
           popup.addTo(map);
+        }
+
+        el.addEventListener('mouseenter', () => {
+          if (!isTarget) {
+            el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
+            popup.addTo(map);
+          }
         });
 
         el.addEventListener('mouseleave', () => {
-          el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
-          popup.remove();
+          if (!isTarget) {
+            el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
+            popup.remove();
+          }
         });
 
         el.addEventListener('click', (e) => {
@@ -415,8 +456,8 @@ function MapContent() {
         popupsRef.current.push(popup);
       }
 
-      // Smooth camera fit when province/city is selected
-      if (selectedProvince && visibleCoords.length > 0) {
+      // Smooth camera fit when province/city is selected without specific project selected
+      if (!selectedProjectId && selectedProvince && visibleCoords.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
         visibleCoords.forEach((pt) => bounds.extend(pt));
         if (!bounds.isEmpty()) {
@@ -426,7 +467,7 @@ function MapContent() {
     } catch (err) {
       console.error('Error rendering map layers:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, selectedProjectId]);
 
   useEffect(() => {
     renderMapLayers();
