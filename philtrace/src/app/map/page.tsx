@@ -160,7 +160,7 @@ function MapContent() {
     };
   }, [basemap]);
 
-  // Render Region Outline Layer (Kept when choosing region)
+  // Render Region Outline Layer ONLY (No city borders)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded || !regionGeoJson) return;
@@ -212,7 +212,7 @@ function MapContent() {
       },
     });
 
-    // Glowing Neon Region Outline Layer (Stays active for selected region)
+    // Glowing Neon Region Outline Layer (Only for region selection)
     map.addLayer({
       id: 'ph-region-outline-layer',
       type: 'line',
@@ -275,7 +275,7 @@ function MapContent() {
         return true;
       });
 
-      // Clear existing markers & popups
+      // Clear existing markers & popups cleanly
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       popupsRef.current.forEach((p) => p.remove());
@@ -283,7 +283,7 @@ function MapContent() {
 
       const visibleCoords: [number, number][] = [];
 
-      // Render ONLY matching project pins
+      // Render ONLY matching project pins with 100% fixed pixel positioning & non-blocking tooltip popups
       for (const p of visibleProjects) {
         visibleCoords.push([p.gpsLng, p.gpsLat]);
 
@@ -294,7 +294,7 @@ function MapContent() {
             ? '#3b82f6'
             : '#10b981';
 
-        // Marker DOM Element (fixed 14x14 circular pin, anchored to exact lat/lng)
+        // Marker DOM Element (fixed 14x14 circular pin, locked at exact lat/lng without scale transform jitter)
         const el = document.createElement('div');
         el.style.width = '14px';
         el.style.height = '14px';
@@ -303,38 +303,44 @@ function MapContent() {
         el.style.border = '2px solid #ffffff';
         el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
         el.style.cursor = 'pointer';
-        el.style.transition = 'transform 0.15s ease-in-out';
+        el.style.transition = 'box-shadow 0.15s ease-in-out';
 
-        const popup = new mapboxgl.Popup({ offset: 12, closeButton: false, closeOnClick: false })
-          .setHTML(`
-            <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #ffffff; font-family: system-ui, sans-serif; min-width: 220px; max-width: 260px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
-                <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
-              </div>
-              <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 70)}...</div>
-              <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-                <span style="color: #94a3b8;">Budget:</span>
-                <span style="font-weight: 800; color: #38bdf8;">${formatCurrency(p.budgetPHP)}</span>
-              </div>
-              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 2px;">
-                <span style="color: #94a3b8;">Progress:</span>
-                <span style="font-weight: 700; color: #60a5fa;">${p.progress.toFixed(1)}%</span>
-              </div>
-              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
-                <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
-                <span style="color: #38bdf8; font-weight: 800;">Click to Inspect &rarr;</span>
-              </div>
+        // Non-blocking Mapbox Popup (pointer-events: none prevents mouseleave flicker loops)
+        const popup = new mapboxgl.Popup({
+          offset: [0, -10],
+          closeButton: false,
+          closeOnClick: false,
+          anchor: 'bottom',
+          className: 'pointer-events-none z-50',
+        }).setHTML(`
+          <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #ffffff; font-family: system-ui, sans-serif; min-width: 220px; max-width: 260px; pointer-events: none;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
+              <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
             </div>
-          `);
+            <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 70)}...</div>
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+              <span style="color: #94a3b8;">Budget:</span>
+              <span style="font-weight: 800; color: #38bdf8;">${formatCurrency(p.budgetPHP)}</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 2px;">
+              <span style="color: #94a3b8;">Progress:</span>
+              <span style="font-weight: 700; color: #60a5fa;">${p.progress.toFixed(1)}%</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
+              <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
+              <span style="color: #38bdf8; font-weight: 800;">Click to Inspect &rarr;</span>
+            </div>
+          </div>
+        `);
 
         el.addEventListener('mouseenter', () => {
-          el.style.transform = 'scale(1.45)';
+          el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
           popup.addTo(map);
         });
 
         el.addEventListener('mouseleave', () => {
-          el.style.transform = 'scale(1)';
+          el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
           popup.remove();
         });
 
