@@ -196,6 +196,12 @@ export default function NearbyPage() {
     map.addSource('radius-circle', { type: 'geojson', data: createGeoJSONCircle([lng, lat], radius) as any });
     map.addLayer({ id: 'radius-circle-fill', type: 'fill', source: 'radius-circle', paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.08 } });
     map.addLayer({ id: 'radius-circle-line', type: 'line', source: 'radius-circle', paint: { 'line-color': '#38bdf8', 'line-width': 2, 'line-dasharray': [3, 2] } });
+    return () => {
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
+    };
   }, [isMapLoaded, lat, lng, radius]);
 
   // ─── Project Pins: create once, never re-mount on hover ──────────────────
@@ -209,10 +215,16 @@ export default function NearbyPage() {
     markersRef.current = [];
     pinElsRef.current.clear();
 
+    console.log('--- Rendering Map Pins ---', projects.length, { lat, lng, radius });
     for (const p of projects) {
       if (!p.gpsLat || !p.gpsLng) continue;
       // Client-side radius guard: skip any pin whose GPS is outside chosen radius
-      if (lat !== null && lng !== null && haversineKm(lat, lng, p.gpsLat, p.gpsLng) > radius) continue;
+      const dist = lat !== null && lng !== null ? haversineKm(lat, lng, p.gpsLat, p.gpsLng) : 999999;
+      if (dist > radius) {
+        console.log('Skipping pin outside radius:', p.name, { lat: p.gpsLat, lng: p.gpsLng, dist });
+        continue;
+      }
+      console.log('Adding pin inside radius:', p.name, { lat: p.gpsLat, lng: p.gpsLng, dist });
       const color = getStatusColor(p);
       const el = document.createElement('div');
       el.style.cssText = `
@@ -232,6 +244,11 @@ export default function NearbyPage() {
       markersRef.current.push(marker);
       pinElsRef.current.set(p.id, el);
     }
+    return () => {
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+      pinElsRef.current.clear();
+    };
   }, [isMapLoaded, projects, lat, lng, radius, router]);
 
   // ─── Hover: update pin styles only, never re-mount markers ───────────────
