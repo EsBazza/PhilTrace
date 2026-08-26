@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNearbyProjects, type ProjectWithRelations } from '@/hooks/use-projects';
@@ -77,7 +76,6 @@ function haversineKm(lat1Raw: number, lng1Raw: number, lat2Raw: number, lng2Raw:
 }
 
 export default function NearbyPage() {
-  const router = useRouter();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -437,7 +435,7 @@ export default function NearbyPage() {
               </span>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
-              Click any project to open it on the main map
+              Click any project to view its details
             </p>
           </div>
 
