@@ -52,6 +52,10 @@ const REGION_NAME_MAP: Record<string, string> = {
 };
 
 const PROVINCE_CENTERS: Record<string, [number, number]> = {
+  'Ilocos Norte': [120.70, 18.19],
+  'Ilocos Sur': [120.55, 17.30],
+  'La Union': [120.38, 16.62],
+  'Pangasinan': [120.33, 15.92],
   'Pampanga': [120.68, 15.05],
   'Bataan': [120.48, 14.68],
   'Bulacan': [120.97, 14.95],
@@ -68,26 +72,38 @@ const PROVINCE_CENTERS: Record<string, [number, number]> = {
   'Laguna': [121.32, 14.20],
   'Batangas': [121.05, 13.80],
   'Quezon': [121.70, 14.00],
-  'Pangasinan': [120.33, 15.92],
 };
+
+function stripDeoSuffix(deoName: string): string {
+  let result = deoName.trim();
+  result = result.replace(/ City DEO$/i, '');
+  result = result.replace(/ \d+(?:st|nd|rd|th) DEO$/i, '');
+  result = result.replace(/ DEO$/i, '');
+  result = result.replace(/ Sub DEO$/i, '');
+  return result.trim();
+}
 
 function isMatchingRegion(pinRegionName?: string, selectedRegionName?: string): boolean {
   if (!selectedRegionName) return true;
   if (!pinRegionName) return false;
-  const a = pinRegionName.toLowerCase();
-  const b = selectedRegionName.toLowerCase();
-  if (a === b || a.includes(b) || b.includes(a)) return true;
-  const mappedA = (REGION_NAME_MAP[pinRegionName] || pinRegionName).toLowerCase();
-  const mappedB = (REGION_NAME_MAP[selectedRegionName] || selectedRegionName).toLowerCase();
-  return mappedA === mappedB || mappedA.includes(mappedB) || mappedB.includes(mappedA);
+  
+  const normPin = (REGION_NAME_MAP[pinRegionName] || pinRegionName).toLowerCase().trim();
+  const normSelected = (REGION_NAME_MAP[selectedRegionName] || selectedRegionName).toLowerCase().trim();
+  
+  return normPin === normSelected || normPin.includes(normSelected) || normSelected.includes(normPin);
 }
 
 function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: string): boolean {
   if (!selectedProvinceName) return true;
   if (!pinProvinceName) return false;
-  const a = pinProvinceName.toLowerCase();
-  const b = selectedProvinceName.toLowerCase();
-  return a === b || a.includes(b) || b.includes(a);
+
+  const cleanPin = stripDeoSuffix(pinProvinceName).toLowerCase().trim();
+  const cleanSelected = stripDeoSuffix(selectedProvinceName).toLowerCase().trim();
+
+  if (cleanPin === cleanSelected) return true;
+  if (cleanPin.startsWith(cleanSelected) || cleanSelected.startsWith(cleanPin)) return true;
+  if (cleanPin.includes(cleanSelected) || cleanSelected.includes(cleanPin)) return true;
+  return false;
 }
 
 function MapContent() {
@@ -179,7 +195,7 @@ function MapContent() {
     };
   }, [basemap]);
 
-  // Render Region Outline Layer ONLY (No city borders)
+  // Render Region Outline Layer ONLY (Only selected region gets an outline; unselected get 0 outline)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapLoaded || !regionGeoJson) return;
@@ -210,7 +226,7 @@ function MapContent() {
       },
     });
 
-    // Translucent Region Fill Layer
+    // Translucent Region Fill Layer (ONLY selected region is highlighted)
     map.addLayer({
       id: 'ph-region-fill-layer',
       type: 'fill',
@@ -226,35 +242,34 @@ function MapContent() {
           'case',
           ['boolean', ['get', 'isSelected'], false],
           0.15,
-          selectedRegion ? 0.4 : 0,
+          selectedRegion ? 0.45 : 0,
         ],
       },
     });
 
-    // Glowing Neon Region Outline Layer (Only for region selection)
+    // Glowing Neon Region Outline Layer (ONLY the selected region gets an outline!)
     map.addLayer({
       id: 'ph-region-outline-layer',
       type: 'line',
       source: 'ph-region-source',
       paint: {
-        'line-color': [
-          'case',
-          ['boolean', ['get', 'isSelected'], false],
-          '#38bdf8',
-          '#475569',
-        ],
-        'line-width': [
-          'case',
-          ['boolean', ['get', 'isSelected'], false],
-          3.5,
-          selectedRegion ? 0.5 : 1,
-        ],
-        'line-opacity': [
-          'case',
-          ['boolean', ['get', 'isSelected'], false],
-          1.0,
-          selectedRegion ? 0.3 : 0.6,
-        ],
+        'line-color': '#38bdf8',
+        'line-width': selectedRegion
+          ? [
+              'case',
+              ['boolean', ['get', 'isSelected'], false],
+              3.5,
+              0,
+            ]
+          : 1,
+        'line-opacity': selectedRegion
+          ? [
+              'case',
+              ['boolean', ['get', 'isSelected'], false],
+              1.0,
+              0.0,
+            ]
+          : 0.5,
       },
     });
   }, [isMapLoaded, regionGeoJson, selectedRegion]);
@@ -409,10 +424,11 @@ function MapContent() {
 
     const regionCenters: Record<string, [number, number]> = {
       'National Capital Region': [121.0, 14.6],
-      'Region III': [120.6, 15.2],
-      'Region IV-A': [121.2, 14.1],
       'Region I': [120.4, 16.5],
       'Region II': [121.8, 17.0],
+      'Region III': [120.6, 15.2],
+      'Region IV-A': [121.2, 14.1],
+      'Region IV-B': [119.0, 10.0],
       'Region V': [123.4, 13.5],
       'Region VI': [122.5, 11.0],
       'Region VII': [123.9, 10.3],
@@ -424,7 +440,6 @@ function MapContent() {
       'Region XIII': [125.5, 9.0],
       'BARMM': [124.3, 7.2],
       'Cordillera Administrative Region': [121.0, 17.3],
-      'Region IV-B': [119.0, 10.0],
       'Negros Island Region': [123.0, 10.0],
     };
 
@@ -436,7 +451,7 @@ function MapContent() {
     });
   };
 
-  // Handle Province Drill-Down selection (e.g. Pampanga)
+  // Handle Province Drill-Down selection (e.g. Pampanga, Ilocos Norte)
   const handleSelectProvince = (provinceName: string) => {
     setSelectedProvince(provinceName);
     if (!provinceName) return;
