@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Region {
+  id         String     @id @default(cuid())
+  psgcCode   String     @unique
+  name       String     @unique
+  provinces  Province[]
+}
+
+model Province {
+  id        String    @id @default(cuid())
+  psgcCode  String    @unique
+  name      String
+  regionId  String
+  region    Region    @relation(fields: [regionId], references: [id])
+  projects  Project[]
+  @@unique([name, regionId])
+}
+
+model Project {
+  id                 String         @id
+  name               String
+  provinceId         String
+  province           Province       @relation(fields: [provinceId], references: [id])
+  gpsLat             Float
+  gpsLng             Float
+  budgetPHP          Float
+  amountPaid         Float          @default(0)
+  progress           Float          @default(0)
+  startDate          DateTime
+  completionDate     DateTime?
+  status             String
+  category           String
+  contractorRaw      String
+  sourceOfFunds      String?
+  programName        String?
+  infraYear          String?
+  isLive             Boolean        @default(false)
+  livestreamUrl      String?
+  hasSatelliteImage  Boolean        @default(false)
+  reportCount        Int            @default(0)
+  flagStalled        Boolean        @default(false)
+  flagNeverStarted   Boolean        @default(false)
+  flagOverdue        Boolean        @default(false)
+  flagPaymentPending Boolean        @default(false)
+  flagOverpaid       Boolean        @default(false)
+  lastActivityAt     DateTime?
+  aiSummary          String?
+  syncSource         String?
+  comments           Comment[]
+  agencyUpdates      AgencyUpdate[]
+  updatedAt          DateTime       @updatedAt
+}
+
+model Contractor {
+  id              String  @id @default(cuid())
+  name            String  @unique
+  totalContracts  Int     @default(0)
+  totalValuePHP   Float   @default(0)
+  avgProgress     Float   @default(0)
+  overdueCount    Int     @default(0)
+  terminatedCount Int     @default(0)
+}
+
+model Comment {
+  id                 String   @id @default(cuid())
+  projectId          String
+  project            Project  @relation(fields: [projectId], references: [id])
+  text               String
+  severity           String
+  rationale          String
+  phoneVerified      Boolean  @default(false)
+  corroborationCount Int      @default(0)
+  photoUrl           String?
+  createdAt          DateTime @default(now())
+}
+
+model AgencyUpdate {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  agencyName  String
+  percentDone Int
+  note        String
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+model AgencyAccount {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  agencyName   String
+  createdAt    DateTime @default(now())
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  @@index([phone, code])
+}
+
+model SyncLog {
+  id        String   @id @default(cuid())
+  source    String
+  count     Int
+  success   Boolean
+  error     String?
+  createdAt DateTime @default(now())
+}
