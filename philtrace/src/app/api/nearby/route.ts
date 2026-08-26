@@ -19,14 +19,14 @@ export async function GET(request: NextRequest) {
     const projects = await prisma.$queryRaw`
       SELECT 
         p.*,
-        (
+        CAST(
           6371 * acos(
             LEAST(1.0, GREATEST(-1.0,
               cos(radians(${lat})) * cos(radians(p."gpsLat")) *
               cos(radians(p."gpsLng") - radians(${lng})) +
               sin(radians(${lat})) * sin(radians(p."gpsLat"))
             ))
-          )
+          ) AS FLOAT
         ) AS distance
       FROM "Project" p
       WHERE 
