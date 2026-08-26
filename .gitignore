@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+philtrace/node_modules/
+
+# Next.js build
+.next/
+philtrace/.next/
+out/
+build/
+
+# Environment Variables
+.env
+.env*.local
+philtrace/.env
+philtrace/.env*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Temp
+.DS_Store
+Thumbs.db
+*.pem
+*.tsbuildinfo
+philtrace/next-env.d.ts
