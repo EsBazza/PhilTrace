@@ -44,7 +44,7 @@ export default function StreetViewEmbed({ gpsLat, gpsLng, projectName }: StreetV
         />
 
         <div className="absolute top-2 right-2 rounded-md bg-black/75 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-md">
-          📍 Project Coordinates
+          Project Coordinates
         </div>
       </div>
     </div>

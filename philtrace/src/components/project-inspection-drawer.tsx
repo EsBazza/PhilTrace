@@ -212,22 +212,22 @@ export default function ProjectInspectionDrawer({
                 <div className="flex flex-wrap gap-1.5 p-2.5 rounded-xl bg-red-50/70 border border-red-200">
                   {project.flagOverdue && (
                     <span className="rounded-full bg-red-100 text-red-800 px-2 py-0.5 font-bold text-[11px]">
-                      ⚠️ Overdue Contract
+                      Overdue Contract
                     </span>
                   )}
                   {project.flagOverpaid && (
                     <span className="rounded-full bg-red-100 text-red-800 px-2 py-0.5 font-bold text-[11px]">
-                      🚨 Overpaid &lt;30% Progress
+                      Overpaid &lt;30% Progress
                     </span>
                   )}
                   {project.flagNeverStarted && (
                     <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 font-bold text-[11px]">
-                      ⏳ Never Started
+                      Never Started
                     </span>
                   )}
                   {project.flagPaymentPending && (
                     <span className="rounded-full bg-gray-100 text-gray-700 px-2 py-0.5 font-medium text-[11px]">
-                      ℹ️ Payment Pending
+                      Payment Pending
                     </span>
                   )}
                 </div>
@@ -236,27 +236,27 @@ export default function ProjectInspectionDrawer({
               {/* Visual Proof Section (Wayback Slider vs 360 Street View) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-900 flex items-center gap-1.5">
-                    <span>👁️</span> Visual Ground & Satellite Proof
+                  <span className="font-bold text-gray-900">
+                    Visual Ground &amp; Satellite Proof
                   </span>
 
                   {/* Switcher */}
                   <div className="flex items-center rounded-lg bg-gray-100 p-0.5">
                     <button
                       onClick={() => setActiveMediaTab('wayback')}
-                      className={`rounded-md px-2 py-1 text-[11px] font-bold transition ${
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
                         activeMediaTab === 'wayback' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                       }`}
                     >
-                      🛰️ Satellite
+                      Satellite
                     </button>
                     <button
                       onClick={() => setActiveMediaTab('streetview')}
-                      className={`rounded-md px-2 py-1 text-[11px] font-bold transition ${
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
                         activeMediaTab === 'streetview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
                       }`}
                     >
-                      🚶 Street View
+                      Street View
                     </button>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ export default function ProjectInspectionDrawer({
 
               {/* Financial & Physical Progress */}
               <div className="rounded-xl border border-gray-200 p-3.5 space-y-3 bg-white shadow-sm">
-                <span className="font-bold text-gray-900">📊 Budget & Disbursement Contrast</span>
+                <span className="font-bold text-gray-900">Budget &amp; Disbursement Contrast</span>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg bg-gray-50 p-2 border border-gray-100">
@@ -324,8 +324,8 @@ export default function ProjectInspectionDrawer({
               {/* Gemini AI Executive Summary */}
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <span>✨</span> Gemini AI Scope Analysis
+                  <span className="font-bold text-indigo-900">
+                    Gemini AI Scope Analysis
                   </span>
                   {!aiSummary && (
                     <button
@@ -360,8 +360,8 @@ export default function ProjectInspectionDrawer({
                   return (
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-gray-900 flex items-center gap-1">
-                          <span>⭐</span> Citizen Reviews ({reviews.length})
+                        <span className="font-bold text-gray-900">
+                          Citizen Reviews ({reviews.length})
                         </span>
                         {geoCheck && (
                           <span
@@ -369,7 +369,7 @@ export default function ProjectInspectionDrawer({
                               geoCheck.isWithin ? 'text-emerald-600' : 'text-amber-700'
                             }`}
                           >
-                            <span>{geoCheck.isWithin ? '✓' : 'ℹ️'}</span>
+                            <span>{geoCheck.isWithin ? '✓' : '•'}</span>
                             <span>
                               {geoCheck.distanceKm} km away{' '}
                               {geoCheck.isWithin ? '(Within 15 km zone)' : '(Rating restricted to ≤ 15 km)'}
@@ -390,15 +390,7 @@ export default function ProjectInspectionDrawer({
                             : ''
                         }
                       >
-                        {geoCheck && !geoCheck.isWithin ? (
-                          <>
-                            <span>🔒</span> Rate (Restricted)
-                          </>
-                        ) : (
-                          <>
-                            <span>+</span> Rate &amp; Review
-                          </>
-                        )}
+                        {geoCheck && !geoCheck.isWithin ? 'Rate (Restricted)' : '+ Rate & Review'}
                       </button>
                     </div>
                   );
@@ -440,21 +432,21 @@ export default function ProjectInspectionDrawer({
                               alt="Ground observation"
                               className="h-32 w-full object-cover group-hover:scale-105 transition duration-200"
                             />
-                            <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded backdrop-blur-xs font-bold flex items-center gap-1">
-                              <span>🔍</span> View Full
+                            <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded backdrop-blur-xs font-bold">
+                              View Full
                             </span>
                           </a>
                         )}
 
                         <div className="flex items-center justify-between pt-1 border-t border-gray-50 text-[11px]">
-                          <span className="text-gray-400">
-                            {r.workersActive === true ? '👷 Workers Active' : r.workersActive === false ? '🏚️ Site Abandoned' : ''}
+                          <span className="text-gray-500 font-medium">
+                            {r.workersActive === true ? 'Workers Active' : r.workersActive === false ? 'Site Abandoned' : ''}
                           </span>
                           <button
                             onClick={() => handleCorroborate(r.id)}
                             className="text-gray-500 hover:text-blue-600 font-medium flex items-center gap-1"
                           >
-                            <span>👍</span> Corroborate ({r.corroborations || 0})
+                            Corroborate ({r.corroborations || 0})
                           </button>
                         </div>
                       </div>

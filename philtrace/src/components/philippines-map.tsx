@@ -380,7 +380,6 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
       <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-black/60 p-3 backdrop-blur-md border border-white/10 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🛰️</span>
             <div>
               <h2 className="text-sm font-bold text-white leading-tight">
                 National Satellite Transparency Lens
@@ -402,7 +401,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
                 basemap === 'satellite' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
-              🛰️ Satellite
+              Satellite
             </button>
             <button
               onClick={() => setBasemap('dark')}
@@ -410,7 +409,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
                 basemap === 'dark' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
-              🌑 Dark
+              Dark
             </button>
             <button
               onClick={() => setBasemap('streets')}
@@ -418,7 +417,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
                 basemap === 'streets' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
-              🗺️ Terrain
+              Terrain
             </button>
           </div>
 
@@ -448,7 +447,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
                 : 'bg-white/10 border-white/10 text-gray-300'
             }`}
           >
-            📍 {showPins ? 'Pins ON' : 'Pins OFF'}
+            {showPins ? 'Pins ON' : 'Pins OFF'}
           </button>
 
           {/* Reset Zoom */}

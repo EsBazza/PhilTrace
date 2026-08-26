@@ -186,10 +186,10 @@ export default function ContractorsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/30 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-              <span>🏢</span> NATIONAL CONTRACTOR ACCOUNTABILITY REGISTRY
+              NATIONAL CONTRACTOR ACCOUNTABILITY REGISTRY
             </div>
             <h1 className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tight">
-              Contractor Joint-Venture Network & Leaderboard
+              Contractor Joint-Venture Network &amp; Leaderboard
             </h1>
             <p className="mt-1 text-xs md:text-sm text-slate-300 max-w-xl">
               Audit joint-venture co-occurrences, examine historical delays, and identify dominant contractors across 248,000+ public contracts.
@@ -214,7 +214,7 @@ export default function ContractorsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100 mb-4">
           <div>
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <span>🕸️</span> Joint-Venture Partnership Cluster Graph
+              Joint-Venture Partnership Cluster Graph
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               Nodes represent primary contractors. Edges represent shared joint-venture contracts. Click any node to inspect partnerships.
@@ -418,7 +418,7 @@ export default function ContractorsPage() {
                           <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold ${
                             isHighRisk ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
                           }`}>
-                            ⚠️ {c.overdueCount} Overdue
+                            {c.overdueCount} Overdue
                           </span>
                         ) : (
                           <span className="text-emerald-600 font-medium">✓ Clean</span>

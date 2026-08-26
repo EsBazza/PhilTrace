@@ -244,7 +244,7 @@ export default function ReviewModal({
         <div className="flex items-start justify-between pb-3 border-b border-gray-100">
           <div>
             <div className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 uppercase tracking-wider">
-              ⭐ Citizen Ground-Truth Audit
+              Citizen Ground-Truth Audit
             </div>
             <h3 className="text-base font-bold text-gray-900 line-clamp-1 mt-0.5">{projectName}</h3>
           </div>
@@ -261,7 +261,6 @@ export default function ReviewModal({
           {geoStatus === 'locating' && (
             <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-xs text-blue-800 flex items-center justify-between gap-2 animate-pulse">
               <div className="flex items-center gap-2">
-                <span className="text-base">🛰️</span>
                 <span>Verifying your GPS proximity to project site (15 km rule)...</span>
               </div>
             </div>
@@ -271,7 +270,6 @@ export default function ReviewModal({
             geoCheck.isWithin ? (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-xs text-emerald-900 flex items-center justify-between gap-2 shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="text-base">📍</span>
                   <div>
                     <div className="font-bold flex items-center gap-1">
                       <span>Proximity Verified ({geoCheck.distanceKm} km away)</span>
@@ -296,7 +294,6 @@ export default function ReviewModal({
               <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-950 shadow-xs space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 font-bold text-rose-800">
-                    <span className="text-base">🚫</span>
                     <span>Outside 15 km Rating Zone ({geoCheck.distanceKm} km away)</span>
                   </div>
                   <button
@@ -318,7 +315,6 @@ export default function ReviewModal({
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 font-bold text-amber-800">
-                  <span className="text-base">⚠️</span>
                   <span>Location Access Required</span>
                 </div>
                 <button
@@ -326,7 +322,7 @@ export default function ReviewModal({
                   onClick={requestGeolocation}
                   className="rounded-lg bg-amber-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-xs hover:bg-amber-700 transition"
                 >
-                  📡 Enable GPS
+                  Enable GPS
                 </button>
               </div>
               <p className="text-[11px] text-amber-800 leading-relaxed">
@@ -338,7 +334,7 @@ export default function ReviewModal({
 
         {errorMsg && (
           <div className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 font-medium border border-red-200">
-            ⚠️ {errorMsg}
+            {errorMsg}
           </div>
         )}
 
@@ -352,9 +348,11 @@ export default function ReviewModal({
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className="text-2xl transition-transform hover:scale-110"
+                  className={`text-2xl transition-transform hover:scale-110 ${
+                    star <= rating ? 'text-amber-500 font-bold' : 'text-gray-300'
+                  }`}
                 >
-                  {star <= rating ? '⭐' : '☆'}
+                  ★
                 </button>
               ))}
               <span className="font-extrabold text-sm text-gray-800 ml-2">
@@ -393,7 +391,7 @@ export default function ReviewModal({
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
-                  👷 Active
+                  Active
                 </button>
                 <button
                   type="button"
@@ -404,7 +402,7 @@ export default function ReviewModal({
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
-                  🏚️ Abandoned
+                  Abandoned
                 </button>
               </div>
             </div>
@@ -426,7 +424,7 @@ export default function ReviewModal({
           {/* Ground Photo Image Upload (Optional) */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="font-bold text-gray-700">📸 Ground Photo Proof (Optional):</label>
+              <label className="font-bold text-gray-700">Ground Photo Proof (Optional):</label>
               {photoUrl && (
                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                   ✓ Photo Attached
@@ -444,7 +442,7 @@ export default function ReviewModal({
                 />
                 {isUploadingPhoto && (
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-xs font-bold gap-2">
-                    <span className="animate-spin">⏳</span> Uploading image...
+                    <span className="animate-spin">◌</span> Uploading image...
                   </div>
                 )}
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
@@ -471,7 +469,9 @@ export default function ReviewModal({
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <span className="text-2xl mb-1">📷</span>
+                <svg className="h-6 w-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
                 <span className="font-bold text-gray-800 text-xs">
                   {isUploadingPhoto ? 'Uploading image...' : 'Click to Upload Ground Photo'}
                 </span>
@@ -486,7 +486,7 @@ export default function ReviewModal({
           <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-bold text-blue-900">📱 Anti-Fraud Phone Verification</span>
+                <span className="font-bold text-blue-900">Anti-Fraud Phone Verification</span>
                 <p className="text-[10px] text-blue-700 mt-0.5">1 OTP code = 1 review per project</p>
               </div>
               <span className="text-[10px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-mono">
@@ -543,8 +543,8 @@ export default function ReviewModal({
                 : isUploadingPhoto
                 ? 'Uploading Photo...'
                 : !isEligibleByDistance
-                ? 'Location Restricted (&gt; 15 km)'
-                : 'Submit Verified Review ⭐'}
+                ? 'Location Restricted (> 15 km)'
+                : 'Submit Verified Review'}
             </button>
           </div>
         </form>

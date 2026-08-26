@@ -65,9 +65,9 @@ export default function AgencyPortalPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="border-b border-gray-200 pb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">🏛️ Government Agency Portal</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Government Agency Portal</h1>
         <p className="text-sm text-gray-500">
-          Official DPWH & Implementing Agency Transparency Verification
+          Official DPWH &amp; Implementing Agency Transparency Verification
         </p>
       </div>
 

@@ -7,7 +7,7 @@ export function Header() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <span className="text-xl font-black bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-            🗺️ MapaTunAI
+            MapaTunAI
           </span>
         </Link>
 
@@ -21,15 +21,15 @@ export function Header() {
           </Link>
           <Link
             href="/map"
-            className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 whitespace-nowrap transition"
+            className="flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 whitespace-nowrap transition font-bold"
           >
-            <span>🗺️</span> Full Map
+            Full Map
           </Link>
           <Link href="/nearby" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
-            📍 Near Me
+            Near Me
           </Link>
           <Link href="/contractors" className="hidden sm:inline text-gray-600 hover:text-blue-700 whitespace-nowrap">
-            🏢 Contractors
+            Contractors
           </Link>
 
         </nav>

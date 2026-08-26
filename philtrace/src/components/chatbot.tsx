@@ -85,7 +85,10 @@ export function Chatbot() {
         <div className="mb-2 w-80 sm:w-96 rounded-lg border border-gray-200 bg-white shadow-xl flex flex-col max-h-[500px]">
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="text-sm font-semibold text-gray-900">🤖 MapaTunAI Assistant</h3>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              MapaTunAI Assistant
+            </h3>
             <button
               onClick={() => setIsOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -148,9 +151,16 @@ export function Chatbot() {
       {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="rounded-full bg-blue-600 p-3 text-white shadow-lg hover:bg-blue-700 transition-all"
+        className="rounded-full bg-blue-600 p-3 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center h-12 w-12"
+        title="Open AI Assistant"
       >
-        {isOpen ? '✕' : '💬'}
+        {isOpen ? (
+          <span className="font-bold text-sm">✕</span>
+        ) : (
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        )}
       </button>
     </div>
   );

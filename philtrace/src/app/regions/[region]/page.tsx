@@ -232,8 +232,7 @@ export default function RegionPage({ params }: RegionPageProps) {
             </>
           ) : (
             <div className="rounded-lg bg-white border border-gray-200 p-12 text-center">
-              <span className="text-3xl">🔍</span>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900">No projects match your filter</h3>
+              <h3 className="text-sm font-semibold text-gray-900">No projects match your filter</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Try selecting All Projects or clearing your category / province filters.
               </p>

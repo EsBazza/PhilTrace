@@ -422,7 +422,7 @@ function MapContent() {
           className: 'pointer-events-none z-50',
         }).setHTML(`
           <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: ${isTarget ? '2px solid #00f0ff' : '1px solid rgba(255,255,255,0.15)'}; border-radius: 12px; padding: 10px; box-shadow: ${isTarget ? '0 0 30px rgba(0, 240, 255, 0.5)' : '0 10px 25px rgba(0,0,0,0.5)'}; color: #ffffff; font-family: system-ui, sans-serif; min-width: 230px; max-width: 270px; pointer-events: none;">
-            ${isTarget ? '<div style="font-size: 9px; font-weight: 900; color: #00f0ff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">📍 Target Searched Project</div>' : ''}
+            ${isTarget ? '<div style="font-size: 9px; font-weight: 900; color: #00f0ff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Target Searched Project</div>' : ''}
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
               <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
               <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
@@ -440,15 +440,15 @@ function MapContent() {
               geoCheck
                 ? `
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 4px; padding: 2px 6px; border-radius: 6px; background: ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; border: 1px solid ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}; color: ${geoCheck.isWithin ? '#6ee7b7' : '#fcd34d'};">
-              <span>📍 ${geoCheck.distanceKm} km away</span>
-              <span style="font-weight: 700;">${geoCheck.isWithin ? '✓ Eligible to Rate' : '🔒 View Only (&gt;15km)'}</span>
+              <span>${geoCheck.distanceKm} km away</span>
+              <span style="font-weight: 700;">${geoCheck.isWithin ? 'Eligible to Rate' : 'View Only (&gt;15km)'}</span>
             </div>
             `
                 : ''
             }
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
-              <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
-              <span style="color: #38bdf8; font-weight: 800;">Inspecting &rarr;</span>
+              <span>${p.avgRating > 0 ? `Rating: ${p.avgRating.toFixed(1)} / 5.0` : 'No reviews'}</span>
+              <span style="color: #38bdf8; font-weight: 800;">Inspect &rarr;</span>
             </div>
           </div>
         `);
@@ -580,26 +580,26 @@ function MapContent() {
                 setSelectedRegion('');
                 setSelectedProvince('');
               }}
-              className={`rounded-lg px-3 py-1.5 transition ${
+              className={`rounded-lg px-3 py-1.5 font-bold transition ${
                 mapMode === 'free_roam' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
-              🌐 Free Roam
+              Free Roam
             </button>
             <button
               onClick={() => setMapMode('drill_down')}
-              className={`rounded-lg px-3 py-1.5 transition ${
+              className={`rounded-lg px-3 py-1.5 font-bold transition ${
                 mapMode === 'drill_down' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
               }`}
             >
-              🎯 Guided Drill-Down
+              Guided Drill-Down
             </button>
           </div>
 
           {/* Guided Mode Breadcrumbs */}
           {mapMode === 'drill_down' && (
             <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-black/80 px-3 py-1.5 backdrop-blur-md border border-white/15 shadow-xl text-xs text-white">
-              <span className="text-blue-400 font-bold">🇵🇭 Philippines</span>
+              <span className="text-blue-400 font-bold">Philippines</span>
               <span>&gt;</span>
 
               {/* Region Dropdown */}
@@ -666,36 +666,36 @@ function MapContent() {
             className="rounded-xl bg-black/80 px-3 py-1.5 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white focus:outline-none"
           >
             <option value="All">All Projects</option>
-            <option value="overdue">⚠️ Overdue Only</option>
-            <option value="overpaid">🚨 Overpaid Only</option>
-            <option value="neverStarted">⏳ Never Started</option>
+            <option value="overdue">Overdue Only</option>
+            <option value="overpaid">Overpaid Only</option>
+            <option value="neverStarted">Never Started</option>
           </select>
 
           {/* Basemap Switcher */}
           <div className="flex items-center rounded-xl bg-black/80 p-1 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white">
             <button
               onClick={() => setBasemap('satellite')}
-              className={`rounded-lg px-2.5 py-1 transition ${
+              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
                 basemap === 'satellite' ? 'bg-blue-600 text-white' : 'text-gray-300'
               }`}
             >
-              🛰️ Satellite
+              Satellite
             </button>
             <button
               onClick={() => setBasemap('dark')}
-              className={`rounded-lg px-2.5 py-1 transition ${
+              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
                 basemap === 'dark' ? 'bg-blue-600 text-white' : 'text-gray-300'
               }`}
             >
-              🌑 Dark
+              Dark
             </button>
             <button
               onClick={() => setBasemap('streets')}
-              className={`rounded-lg px-2.5 py-1 transition ${
+              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
                 basemap === 'streets' ? 'bg-blue-600 text-white' : 'text-gray-300'
               }`}
             >
-              🗺️ Terrain
+              Terrain
             </button>
           </div>
         </div>

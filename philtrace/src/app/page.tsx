@@ -63,14 +63,14 @@ export default function AboutAndHomePage() {
               href="/map"
               className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg hover:bg-blue-500 hover:scale-105 transition-all"
             >
-              <span>🗺️</span> Open National Interactive Map &rarr;
+              Open National Interactive Map &rarr;
             </Link>
 
             <Link
               href="/contractors"
               className="flex items-center gap-2 rounded-xl bg-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/20 border border-white/15 backdrop-blur-md transition"
             >
-              <span>🏢</span> Contractor Leaderboard
+              Contractor Leaderboard
             </Link>
           </div>
         </div>
@@ -114,30 +114,30 @@ export default function AboutAndHomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
           <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-6 space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl text-white shadow-md">
-              🏛️
+            <div className="inline-flex h-9 px-3 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white shadow-sm">
+              Layer 1
             </div>
-            <h3 className="text-base font-bold text-gray-900">1. What The Government Claims</h3>
+            <h3 className="text-base font-bold text-gray-900">What The Government Claims</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
               Official data feeds direct from DPWH and national budgets. We track contract amounts, reported completion rates, source of funds, and official agency field inspection updates.
             </p>
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-6 space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-2xl text-white shadow-md">
-              ⭐
+            <div className="inline-flex h-9 px-3 items-center justify-center rounded-lg bg-amber-500 text-xs font-bold text-white shadow-sm">
+              Layer 2
             </div>
-            <h3 className="text-base font-bold text-gray-900">2. What Citizens Experience</h3>
+            <h3 className="text-base font-bold text-gray-900">What Citizens Experience</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
               Whistleblower reviews and 5-star quality ratings submitted by local community members on the ground, verified with anti-spam phone OTP and real site photos.
             </p>
           </div>
 
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6 space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-2xl text-white shadow-md">
-              🛰️
+            <div className="inline-flex h-9 px-3 items-center justify-center rounded-lg bg-emerald-600 text-xs font-bold text-white shadow-sm">
+              Layer 3
             </div>
-            <h3 className="text-base font-bold text-gray-900">3. What Satellites Prove</h3>
+            <h3 className="text-base font-bold text-gray-900">What Satellites Prove</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
               ESRI Wayback satellite before/after split-screen sliders and 360° Google Street View to visually verify whether a ₱100M road or bridge was actually paved or remains bare dirt.
             </p>
@@ -217,7 +217,6 @@ export default function AboutAndHomePage() {
 
       {/* About Creators & Hackathon Mission */}
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8 text-center space-y-3">
-        <span className="text-2xl">🇵🇭</span>
         <h3 className="text-base font-bold text-gray-900">About MapaTunAI & The Civic Team</h3>
         <p className="text-xs text-gray-600 max-w-xl mx-auto leading-relaxed">
           MapaTunAI was engineered as a 100% open, public-interest civic technology tool for Philippine governance. Our goal is to transform public data into actionable community power, holding contractors and public works agencies accountable to the Filipino people.

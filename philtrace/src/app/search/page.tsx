@@ -353,24 +353,21 @@ function SearchContent() {
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-left">
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-xl">🏗️</span>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900">By Project</h3>
+              <h3 className="text-sm font-semibold text-gray-900">By Project</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Search by name, category (e.g. &ldquo;Flood Control&rdquo;), or contract ID.
               </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-xl">🏢</span>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900">By Contractor</h3>
+              <h3 className="text-sm font-semibold text-gray-900">By Contractor</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Search construction companies, joint ventures, and evaluate historical completion rates.
               </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <span className="text-xl">📍</span>
-              <h3 className="mt-2 text-sm font-semibold text-gray-900">By Location</h3>
+              <h3 className="text-sm font-semibold text-gray-900">By Location</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Find projects by province, city, or region name across all 17 Philippine regions.
               </p>
@@ -402,7 +399,7 @@ function SearchContent() {
           {/* Search Tips */}
           <div className="mt-6 max-w-md mx-auto rounded-lg bg-gray-50 border border-gray-200 p-4 text-left">
             <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-              💡 Search Tips:
+              Search Tips:
             </h3>
             <ul className="space-y-1.5 text-xs text-gray-600 list-disc list-inside">
               <li>Check the spelling of project names or contractor entities</li>
@@ -441,7 +438,6 @@ function SearchContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🏢</span>
                   <h2 className="text-lg font-bold text-gray-900">Contractors</h2>
                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
                     {totalContractors}
@@ -490,12 +486,12 @@ function SearchContent() {
                     <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-1.5 text-xs">
                       {c.overdueCount > 0 && (
                         <span className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-red-700 font-medium">
-                          ⚠️ {c.overdueCount} Overdue
+                          {c.overdueCount} Overdue
                         </span>
                       )}
                       {c.terminatedCount > 0 && (
                         <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-amber-700 font-medium">
-                          ⛔ {c.terminatedCount} Terminated
+                          {c.terminatedCount} Terminated
                         </span>
                       )}
                       {c.overdueCount === 0 && c.terminatedCount === 0 && (
@@ -539,7 +535,6 @@ function SearchContent() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🏗️</span>
                   <h2 className="text-lg font-bold text-gray-900">Infrastructure Projects</h2>
                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
                     {totalProjects}
@@ -586,7 +581,7 @@ function SearchContent() {
                         </h3>
 
                         <p className="mt-1 text-xs text-gray-500 truncate">
-                          🏗️ {cleanContractorName(project.contractorRaw || 'Unassigned')}
+                          {cleanContractorName(project.contractorRaw || 'Unassigned')}
                         </p>
 
                         <div className="mt-3 flex items-center justify-between text-xs">
@@ -619,7 +614,6 @@ function SearchContent() {
                       <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-1">
                         {project.isLive && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2 py-0.5 text-xs font-semibold text-red-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-ping" />
                             LIVE
                           </span>
                         )}
@@ -630,7 +624,7 @@ function SearchContent() {
                               FLAG_COLORS[flag] ?? 'bg-gray-100 text-gray-700 border-gray-200'
                             }`}
                           >
-                            ⚠️ {flag}
+                            {flag}
                           </span>
                         ))}
                         {flags.length === 0 && !project.isLive && (

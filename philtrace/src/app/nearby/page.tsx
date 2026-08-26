@@ -289,7 +289,7 @@ export default function NearbyPage() {
         {/* Left: title + radius */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            📍 Near Me
+            Near Me
             <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#38bdf8', background: 'rgba(56,189,248,0.12)', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(56,189,248,0.3)' }}>
               {radius} km radius
             </span>
@@ -327,7 +327,7 @@ export default function NearbyPage() {
               opacity: geoStatus === 'locating' ? 0.6 : 1, transition: 'all 0.15s',
             }}
           >
-            {geoStatus === 'locating' ? '⏳ Locating…' : '📡 GPS Location'}
+            {geoStatus === 'locating' ? 'Locating…' : 'GPS Location'}
           </button>
 
           {/* City Presets */}
@@ -338,7 +338,7 @@ export default function NearbyPage() {
             }}
             style={{ padding: '5px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', outline: 'none' }}
           >
-            <option value="">📌 City Presets</option>
+            <option value="">City Presets</option>
             {PH_PRESETS.map((c, i) => (
               <option key={c.name} value={i} style={{ background: '#1e293b' }}>{c.name}</option>
             ))}
@@ -364,12 +364,13 @@ export default function NearbyPage() {
                 onClick={() => setBasemap(style)}
                 title={style}
                 style={{
-                  padding: '4px 8px', borderRadius: '7px', fontSize: '14px', cursor: 'pointer',
-                  border: 'none', transition: 'all 0.15s',
+                  padding: '4px 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                  border: 'none', transition: 'all 0.15s', textTransform: 'capitalize',
                   background: basemap === style ? '#334155' : 'transparent',
+                  color: basemap === style ? '#fff' : 'rgba(255,255,255,0.6)',
                 }}
               >
-                {style === 'satellite' ? '🛰️' : style === 'dark' ? '🌑' : '🗺️'}
+                {style}
               </button>
             ))}
           </div>
@@ -421,7 +422,7 @@ export default function NearbyPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>🏗️ Nearby Projects</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>Nearby Projects</span>
                 <span style={{
                   background: '#2563eb', color: '#fff', borderRadius: '20px',
                   padding: '1px 9px', fontSize: '11px', fontWeight: 700,
@@ -449,7 +450,6 @@ export default function NearbyPage() {
               ))
             ) : projects.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(255,255,255,0.4)' }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📭</div>
                 <div style={{ fontWeight: 700, color: '#fff', marginBottom: '6px' }}>No Projects Found</div>
                 <div style={{ fontSize: '12px' }}>Try a larger radius or a different city preset.</div>
               </div>
@@ -488,7 +488,7 @@ export default function NearbyPage() {
                         color: '#7dd3fc', borderRadius: '20px', padding: '2px 10px', fontSize: '11px', fontWeight: 700,
                       }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor, display: 'inline-block', boxShadow: `0 0 8px ${dotColor}` }} />
-                        📍 {formatDistance(Number(project.distance))}
+                        {formatDistance(Number(project.distance))}
                       </span>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBg}`}>
                         {project.status}
@@ -502,7 +502,7 @@ export default function NearbyPage() {
 
                     {/* Contractor */}
                     <p style={{ margin: '0 0 10px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      🏗️ {cleanContractorName(project.contractorRaw || 'DPWH Project')}
+                      {cleanContractorName(project.contractorRaw || 'DPWH Project')}
                     </p>
 
                     {/* Budget + Progress Grid */}
@@ -532,7 +532,7 @@ export default function NearbyPage() {
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {flags.length > 0 ? flags.map((f) => (
                           <span key={f} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', borderRadius: '20px', padding: '1px 8px', fontSize: '10px', fontWeight: 700 }}>
-                            ⚠️ {f}
+                            {f}
                           </span>
                         )) : (
                           <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>No anomaly flags</span>
