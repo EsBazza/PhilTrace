@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { parseContractors } from '@/lib/format';
+import { parseContractors, cleanContractorName } from '@/lib/format';
 
 interface CytoscapeNode {
   data: {
@@ -26,42 +26,59 @@ export async function GET() {
   try {
     const contractors = await prisma.contractor.findMany({
       orderBy: { totalValuePHP: 'desc' },
-      take: 200, // Top 200 contractors for the graph
+      take: 150,
     });
 
-    // Get projects with multiple contractors (joint ventures)
+    const contractorMap = new Map<string, typeof contractors[0]>();
+    for (const c of contractors) {
+      const clean = cleanContractorName(c.name);
+      contractorMap.set(clean, c);
+    }
+
+    const cleanNodeIds = new Set(contractorMap.keys());
+
+    // Get projects with joint ventures
     const projects = await prisma.project.findMany({
       where: {
-        contractorRaw: {
-          contains: '&',
-        },
+        OR: [
+          { contractorRaw: { contains: '/' } },
+          { contractorRaw: { contains: ' (JV) ' } },
+          { contractorRaw: { contains: ' JOINT VENTURE ' } },
+        ],
       },
       select: {
-        id: true,
         contractorRaw: true,
       },
+      take: 5000,
     });
 
     // Build edge map
     const edgeMap = new Map<string, number>();
+    const activeConnectedNodeIds = new Set<string>();
+
     for (const project of projects) {
       const names = parseContractors(project.contractorRaw);
       if (names.length < 2) continue;
 
       for (let i = 0; i < names.length; i++) {
         for (let j = i + 1; j < names.length; j++) {
-          const key = [names[i], names[j]].sort().join('|||');
-          edgeMap.set(key, (edgeMap.get(key) ?? 0) + 1);
+          const c1 = names[i];
+          const c2 = names[j];
+
+          if (c1 && c2 && c1 !== c2 && cleanNodeIds.has(c1) && cleanNodeIds.has(c2)) {
+            const key = [c1, c2].sort().join('|||');
+            edgeMap.set(key, (edgeMap.get(key) ?? 0) + 1);
+            activeConnectedNodeIds.add(c1);
+            activeConnectedNodeIds.add(c2);
+          }
         }
       }
     }
 
-    const nodeIds = new Set(contractors.map((c) => c.name));
-
-    const nodes: CytoscapeNode[] = contractors.map((c) => ({
+    const nodes: CytoscapeNode[] = Array.from(contractorMap.entries()).map(([cleanName, c]) => ({
       data: {
-        id: c.name,
-        label: c.name,
+        id: cleanName,
+        label: cleanName,
         totalValue: c.totalValuePHP,
         totalContracts: c.totalContracts,
         avgProgress: c.avgProgress,
@@ -73,7 +90,7 @@ export async function GET() {
     const edges: CytoscapeEdge[] = [];
     for (const [key, weight] of edgeMap) {
       const [source, target] = key.split('|||');
-      if (nodeIds.has(source) && nodeIds.has(target)) {
+      if (cleanNodeIds.has(source) && cleanNodeIds.has(target)) {
         edges.push({
           data: {
             id: `${source}-${target}`,

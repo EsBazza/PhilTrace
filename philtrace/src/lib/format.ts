@@ -48,10 +48,12 @@ export function cleanContractorName(raw: string): string {
 
 /**
  * Parse contractor raw string to extract individual contractor names.
- * Splits on "&", "/", "JOINT VENTURE" and cleans each.
+ * DPWH joint ventures are separated by " / " or " (JV) " or " JOINT VENTURE ".
  */
 export function parseContractors(raw: string): string[] {
-  const cleaned = cleanContractorName(raw);
-  const parts = cleaned.split(/\s*(?:&|\/|JOINT\s+VENTURE)\s*/i);
-  return parts.map(p => p.trim()).filter(p => p.length > 0);
+  if (!raw) return [];
+  const parts = raw.split(/\s*(?:\/|\(JV\)|JOINT\s+VENTURE|\s+JV\s+)\s*/i);
+  return parts
+    .map((p) => cleanContractorName(p.trim()))
+    .filter((p) => p.length > 2);
 }
