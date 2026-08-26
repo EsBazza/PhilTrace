@@ -46,6 +46,8 @@ model Project {
   livestreamUrl      String?
   hasSatelliteImage  Boolean        @default(false)
   reportCount        Int            @default(0)
+  avgRating          Float          @default(0)
+  reviewCount        Int            @default(0)
   flagStalled        Boolean        @default(false)
   flagNeverStarted   Boolean        @default(false)
   flagOverdue        Boolean        @default(false)
@@ -55,8 +57,28 @@ model Project {
   aiSummary          String?
   syncSource         String?
   comments           Comment[]
+  reviews            Review[]
   agencyUpdates      AgencyUpdate[]
   updatedAt          DateTime       @updatedAt
+}
+
+model Review {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rating           Float    // 1.0 to 5.0
+  progressRating   Float?   // Physical progress perception (0 - 100)
+  qualityRating    Float?   // 1 - 5 stars
+  workersActive    Boolean? // Active vs Abandoned
+  comment          String
+  photoUrl         String?
+  phoneHash        String   // SHA-256 hashed phone number
+  phoneVerified    Boolean  @default(false)
+  corroborations   Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([projectId])
+  @@index([rating])
 }
 
 model Contractor {

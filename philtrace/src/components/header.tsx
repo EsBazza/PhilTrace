@@ -13,14 +13,23 @@ export function Header() {
           <SearchBar />
         </div>
 
-        <nav className="flex items-center gap-2 sm:gap-4 text-sm">
+        <nav className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+          <Link href="/" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
+            About
+          </Link>
+          <Link
+            href="/map"
+            className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 whitespace-nowrap transition"
+          >
+            <span>🗺️</span> Full Map
+          </Link>
           <Link href="/nearby" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
-            Near Me
+            📍 Near Me
           </Link>
           <Link href="/contractors" className="hidden sm:inline text-gray-600 hover:text-blue-700 whitespace-nowrap">
-            Contractors
+            🏢 Contractors
           </Link>
-          <Link href="/agency" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
+          <Link href="/agency" className="text-gray-400 hover:text-gray-700 whitespace-nowrap text-xs">
             Agency
           </Link>
         </nav>
