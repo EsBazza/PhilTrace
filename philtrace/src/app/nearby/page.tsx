@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNearbyProjects, type ProjectWithRelations } from '@/hooks/use-projects';
@@ -136,21 +136,26 @@ export default function NearbyPage() {
   const { data, isLoading } = useNearbyProjects(lat, lng, radius);
   const allProjects = (data?.projects as NearbyProject[]) ?? [];
 
-  const projects = allProjects
-    .map((p) => {
-      const dist = lat !== null && lng !== null && p.gpsLat && p.gpsLng
-        ? haversineKm(lat, lng, p.gpsLat, p.gpsLng)
-        : Number(p.distance ?? 999999);
-      return { ...p, distance: dist };
-    })
-    .filter((p) => {
-      if (!p.gpsLat || !p.gpsLng) return false;
-      if (lat !== null && lng !== null && p.distance > radius) return false;
-      if (selectedCategory !== 'All' && !p.category.toLowerCase().includes(selectedCategory.toLowerCase())) {
-        return false;
-      }
-      return true;
-    });
+  // useMemo so projects only changes when data/lat/lng/radius/category actually changes
+  // — NOT on every hover, which would otherwise re-mount all map markers unnecessarily
+  const projects = useMemo(() =>
+    allProjects
+      .map((p) => {
+        const dist = lat !== null && lng !== null && p.gpsLat && p.gpsLng
+          ? haversineKm(lat, lng, p.gpsLat, p.gpsLng)
+          : Number(p.distance ?? 999999);
+        return { ...p, distance: dist };
+      })
+      .filter((p) => {
+        if (!p.gpsLat || !p.gpsLng) return false;
+        if (lat !== null && lng !== null && p.distance > radius) return false;
+        if (selectedCategory !== 'All' && !p.category.toLowerCase().includes(selectedCategory.toLowerCase())) {
+          return false;
+        }
+        return true;
+      }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [data, lat, lng, radius, selectedCategory]);
 
   // ─── Mapbox Init ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -227,16 +232,10 @@ export default function NearbyPage() {
     markersRef.current = [];
     pinElsRef.current.clear();
 
-    console.log('--- Rendering Map Pins ---', projects.length, { lat, lng, radius });
     for (const p of projects) {
       if (!p.gpsLat || !p.gpsLng) continue;
-      // Client-side radius guard: skip any pin whose GPS is outside chosen radius
       const dist = lat !== null && lng !== null ? haversineKm(lat, lng, p.gpsLat, p.gpsLng) : 999999;
-      if (dist > radius) {
-        console.log('Skipping pin outside radius:', p.name, { lat: p.gpsLat, lng: p.gpsLng, dist });
-        continue;
-      }
-      console.log('Adding pin inside radius:', p.name, { lat: p.gpsLat, lng: p.gpsLng, dist });
+      if (dist > radius) continue;
       const color = getStatusColor(p);
       const el = document.createElement('div');
       el.style.cssText = `
@@ -244,7 +243,7 @@ export default function NearbyPage() {
         background: ${color}; border: 2px solid #fff;
         box-shadow: 0 0 10px ${color}, 0 2px 6px rgba(0,0,0,0.7);
         cursor: pointer; transition: box-shadow 0.15s ease, background 0.15s ease;
-        pointer-events: auto; position: relative;
+        pointer-events: auto;
       `;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
