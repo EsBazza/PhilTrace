@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "tsx scripts/seed-all.ts",
+    "db:seed": "tsx scripts/seed-all.ts"
+  },
+  "prisma": {
+    "seed": "tsx scripts/seed-all.ts"
   },
   "dependencies": {
     "@google/genai": "^2.19.0",
