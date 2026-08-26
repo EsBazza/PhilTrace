@@ -34,7 +34,6 @@ export default function FullscreenMapPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
-  const popupsRef = useRef<mapboxgl.Popup[]>([]);
 
   // Modes & UI State
   const [mapMode, setMapMode] = useState<'free_roam' | 'drill_down'>('free_roam');
@@ -97,7 +96,7 @@ export default function FullscreenMapPage() {
     };
   }, [basemap]);
 
-  // Load & Render Dynamic Project Pins and Hover Previews
+  // Load & Render Dynamic Project Pins with Anchored Tooltips
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
@@ -105,7 +104,7 @@ export default function FullscreenMapPage() {
     try {
       // Build API query
       const params = new URLSearchParams();
-      params.set('limit', '100');
+      params.set('limit', '120');
       if (selectedRegion) params.set('region', selectedRegion);
       if (selectedProvince) params.set('province', selectedProvince);
       if (filterCategory !== 'All') params.set('category', filterCategory);
@@ -118,83 +117,90 @@ export default function FullscreenMapPage() {
       const data = await res.json();
       const projects = data.projects || [];
 
-      // Clear existing markers & popups
+      // Clear existing markers
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
-      popupsRef.current.forEach((p) => p.remove());
-      popupsRef.current = [];
 
-      // Add individual interactive DOM Markers with working HOVER preview
+      // Add individual interactive DOM Markers with locked relative tooltip
       for (const p of projects) {
         if (!p.gpsLat || !p.gpsLng) continue;
 
-        const el = document.createElement('div');
-        el.className = 'project-pin';
-        el.style.width = '16px';
-        el.style.height = '16px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor =
+        const pinColor =
           p.flagOverdue || p.flagOverpaid
             ? '#ef4444'
             : p.isLive
             ? '#3b82f6'
             : '#10b981';
-        el.style.border = '2px solid white';
-        el.style.boxShadow = '0 0 10px rgba(0,0,0,0.65)';
-        el.style.cursor = 'pointer';
-        el.style.transition = 'transform 0.15s ease';
 
-        // High-fidelity Google Maps-style Hover Tooltip
-        const popup = new mapboxgl.Popup({
-          offset: 16,
-          closeButton: false,
-          closeOnClick: false,
-          className: 'project-preview-popup',
-        }).setHTML(`
-          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 8px; max-width: 250px; background: #ffffff; border-radius: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 2px;">
-              <span style="font-size: 9px; font-weight: 800; color: #4b5563; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
-              <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#10b981' : '#f59e0b'}; background: #f3f4f6; padding: 1px 5px; border-radius: 4px;">${p.status}</span>
+        // Outer Marker Container (relative)
+        const container = document.createElement('div');
+        container.className = 'group relative flex items-center justify-center';
+        container.style.cursor = 'pointer';
+        container.style.width = '24px';
+        container.style.height = '24px';
+
+        // Pin Circle
+        const circle = document.createElement('div');
+        circle.style.width = '14px';
+        circle.style.height = '14px';
+        circle.style.borderRadius = '50%';
+        circle.style.backgroundColor = pinColor;
+        circle.style.border = '2px solid white';
+        circle.style.boxShadow = '0 2px 8px rgba(0,0,0,0.7)';
+        circle.style.transition = 'transform 0.15s ease';
+        container.appendChild(circle);
+
+        // Tooltip element (physically anchored directly above circle)
+        const tooltip = document.createElement('div');
+        tooltip.className =
+          'pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50';
+        tooltip.style.minWidth = '240px';
+        tooltip.style.maxWidth = '280px';
+
+        tooltip.innerHTML = `
+          <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); color: #ffffff; font-family: system-ui, sans-serif;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+              <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
+              <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
             </div>
-            <div style="font-size: 11px; font-weight: 700; color: #111827; line-height: 1.35; margin-top: 2px;">${p.name.slice(0, 75)}...</div>
-            <div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-              <span style="color: #6b7280;">Budget:</span>
-              <span style="font-weight: 800; color: #111827;">${formatCurrency(p.budgetPHP)}</span>
+            <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 70)}...</div>
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+              <span style="color: #94a3b8;">Budget:</span>
+              <span style="font-weight: 800; color: #38bdf8;">${formatCurrency(p.budgetPHP)}</span>
             </div>
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 2px;">
-              <span style="color: #6b7280;">Progress:</span>
-              <span style="font-weight: 700; color: #2563eb;">${p.progress.toFixed(1)}%</span>
+              <span style="color: #94a3b8;">Progress:</span>
+              <span style="font-weight: 700; color: #60a5fa;">${p.progress.toFixed(1)}%</span>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 4px; color: #d97706; font-weight: 700;">
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
               <span>⭐ ${p.avgRating > 0 ? p.avgRating.toFixed(1) : 'No reviews'}</span>
-              <span style="color: #2563eb; font-weight: 800;">Click to Inspect &rarr;</span>
+              <span style="color: #38bdf8; font-weight: 800;">Click to Inspect &rarr;</span>
             </div>
           </div>
-        `);
+          <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid rgba(15, 23, 42, 0.95); margin: 0 auto;"></div>
+        `;
 
-        // Hover Event Listeners
-        el.addEventListener('mouseenter', () => {
-          el.style.transform = 'scale(1.4)';
-          popup.setLngLat([p.gpsLng, p.gpsLat]).addTo(map);
+        container.appendChild(tooltip);
+
+        // Hover animation
+        container.addEventListener('mouseenter', () => {
+          circle.style.transform = 'scale(1.35)';
         });
-
-        el.addEventListener('mouseleave', () => {
-          el.style.transform = 'scale(1)';
-          popup.remove();
+        container.addEventListener('mouseleave', () => {
+          circle.style.transform = 'scale(1)';
         });
 
         // Click opens Project Drawer
-        el.addEventListener('click', () => {
-          popup.remove();
+        container.addEventListener('click', (e) => {
+          e.stopPropagation();
           setSelectedProjectId(p.id);
         });
 
-        const marker = new mapboxgl.Marker(el)
+        const marker = new mapboxgl.Marker({ element: container, anchor: 'center' })
           .setLngLat([p.gpsLng, p.gpsLat])
           .addTo(map);
 
         markersRef.current.push(marker);
-        popupsRef.current.push(popup);
       }
     } catch (err) {
       console.error('Error rendering map layers:', err);
