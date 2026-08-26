@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     const context = await buildChatContext();
 
-    const systemPrompt = `You are a civic transparency assistant for PhilTrace, a platform tracking Philippine government infrastructure projects. Answer questions using only the data context provided. Be concise and factual. If asked about a specific project, say you can only answer aggregate questions and suggest the user search for it directly. Context: ${JSON.stringify(context)}`;
+    const systemPrompt = `You are a civic transparency AI assistant for MapaTunAI (Mapping What's Real — Exposing Ghost Projects Across the Philippines), a platform tracking Philippine government infrastructure projects. Answer questions using only the data context provided. Be concise and factual. If asked about a specific project, say you can only answer aggregate questions and suggest the user search for it directly. Context: ${JSON.stringify(context)}`;
 
     const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY() });
     const response = await ai.models.generateContentStream({

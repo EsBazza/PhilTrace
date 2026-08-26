@@ -6,8 +6,8 @@ import { Chatbot } from '@/components/chatbot';
 import { MainLayoutWrapper } from '@/components/main-layout-wrapper';
 
 export const metadata: Metadata = {
-  title: 'PhilTrace — Philippine Infrastructure Transparency',
-  description: 'Track, investigate, and report on Philippine public infrastructure projects.',
+  title: "MapaTunAI: Mapping What's Real — Exposing Ghost Projects Across the Philippines",
+  description: "MapaTunAI: Mapping What's Real — Exposing Ghost Projects Across the Philippines. Track, investigate, and audit public infrastructure contracts with citizen truth and satellite proof.",
 };
 
 export default function RootLayout({

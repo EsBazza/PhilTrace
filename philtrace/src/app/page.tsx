@@ -47,15 +47,15 @@ export default function AboutAndHomePage() {
         <div className="relative z-10 max-w-3xl space-y-6">
           <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-3.5 py-1 text-xs font-bold text-blue-300 backdrop-blur-md border border-blue-400/20">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            OFFICIAL PHILIPPINE CIVIC TRANSPARENCY PLATFORM
+            MAPATUNAI CIVIC PLATFORM
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Google Maps for Philippine Public Works & Infrastructure.
+            MapaTunAI: Mapping What&apos;s Real — Exposing Ghost Projects Across the Philippines
           </h1>
 
           <p className="text-sm sm:text-base text-blue-200/90 leading-relaxed max-w-2xl">
-            PhilTrace empowers every Filipino taxpayer to investigate, review, and audit all DPWH infrastructure contracts — cross-referencing official claims with verified citizen reports and satellite ground truth.
+            MapaTunAI empowers every Filipino taxpayer to investigate, review, and audit all public infrastructure contracts — cross-referencing official DPWH claims with verified citizen ground-truth reports and satellite proof to uncover ghost projects.
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -103,7 +103,7 @@ export default function AboutAndHomePage() {
       {/* The 3 Core Transparency Signals */}
       <div className="space-y-4">
         <div className="text-center max-w-xl mx-auto">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600">The PhilTrace Method</span>
+          <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600">The MapaTunAI Method</span>
           <h2 className="text-2xl font-bold text-gray-900 mt-1">
             The 3 Independent Truth Signals
           </h2>
@@ -218,9 +218,9 @@ export default function AboutAndHomePage() {
       {/* About Creators & Hackathon Mission */}
       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8 text-center space-y-3">
         <span className="text-2xl">🇵🇭</span>
-        <h3 className="text-base font-bold text-gray-900">About PhilTrace & The Civic Team</h3>
+        <h3 className="text-base font-bold text-gray-900">About MapaTunAI & The Civic Team</h3>
         <p className="text-xs text-gray-600 max-w-xl mx-auto leading-relaxed">
-          PhilTrace was engineered as a 100% open, public-interest civic technology tool for the Philippine governance hackathon. Our goal is to transform public data into actionable community power, holding contractors and public works agencies accountable to the Filipino people.
+          MapaTunAI was engineered as a 100% open, public-interest civic technology tool for Philippine governance. Our goal is to transform public data into actionable community power, holding contractors and public works agencies accountable to the Filipino people.
         </p>
         <div className="pt-2 flex justify-center gap-4 text-xs font-semibold text-blue-600">
           <Link href="/map" className="hover:underline">Open Map</Link>

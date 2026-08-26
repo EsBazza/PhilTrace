@@ -85,7 +85,7 @@ export function Chatbot() {
         <div className="mb-2 w-80 sm:w-96 rounded-lg border border-gray-200 bg-white shadow-xl flex flex-col max-h-[500px]">
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="text-sm font-semibold text-gray-900">🤖 PhilTrace Assistant</h3>
+            <h3 className="text-sm font-semibold text-gray-900">🤖 MapaTunAI Assistant</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="text-gray-400 hover:text-gray-600"

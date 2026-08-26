@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         apikey: env.SEMAPHORE_API_KEY(),
         number: trimmedPhone,
-        message: `Your PhilTrace verification code is: ${code}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+        message: `Your MapaTunAI verification code is: ${code}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
       }),
     });
 

@@ -16,12 +16,12 @@ export async function POST(request: NextRequest) {
 
     const agencies = [
       {
-        email: 'dpwh-admin@philtrace.ph',
+        email: 'dpwh-admin@mapatunai.ph',
         password: 'dpwh-demo-2026',
         agencyName: 'Department of Public Works and Highways',
       },
       {
-        email: 'neda-admin@philtrace.ph',
+        email: 'neda-admin@mapatunai.ph',
         password: 'neda-demo-2026',
         agencyName: 'National Economic and Development Authority',
       },

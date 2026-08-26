@@ -308,7 +308,7 @@ export default function ReviewModal({
                   </button>
                 </div>
                 <p className="text-[11px] text-rose-800 leading-relaxed">
-                  To prevent fraudulent reviews, PhilTrace strictly limits project ratings to citizens located within <strong>15 km</strong> of the infrastructure site.
+                  To prevent fraudulent reviews, MapaTunAI strictly limits project ratings to citizens located within <strong>15 km</strong> of the infrastructure site.
                 </p>
               </div>
             )

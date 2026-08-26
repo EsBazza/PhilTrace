@@ -715,7 +715,7 @@ function MapContent() {
 
 export default function FullscreenMapPage() {
   return (
-    <Suspense fallback={<div className="h-screen w-full bg-slate-950 flex items-center justify-center text-white">Loading PhilTrace Map Engine...</div>}>
+    <Suspense fallback={<div className="h-screen w-full bg-slate-950 flex items-center justify-center text-white">Loading MapaTunAI Map Engine...</div>}>
       <MapContent />
     </Suspense>
   );

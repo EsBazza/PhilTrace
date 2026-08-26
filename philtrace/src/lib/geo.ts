@@ -1,5 +1,5 @@
 /**
- * Geolocation and distance calculation utilities for PhilTrace.
+ * Geolocation and distance calculation utilities for MapaTunAI.
  */
 
 export const MAX_REVIEW_RADIUS_KM = 15;
