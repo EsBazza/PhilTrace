@@ -86,11 +86,13 @@ function stripDeoSuffix(deoName: string): string {
 function isMatchingRegion(pinRegionName?: string, selectedRegionName?: string): boolean {
   if (!selectedRegionName) return true;
   if (!pinRegionName) return false;
-  
+
+  // Normalize both sides through the same map so we compare canonical DB names
   const normPin = (REGION_NAME_MAP[pinRegionName] || pinRegionName).toLowerCase().trim();
   const normSelected = (REGION_NAME_MAP[selectedRegionName] || selectedRegionName).toLowerCase().trim();
-  
-  return normPin === normSelected || normPin.includes(normSelected) || normSelected.includes(normPin);
+
+  // Exact equality only — substring matching causes Region I to also light up Region II, III, IV, IX
+  return normPin === normSelected;
 }
 
 function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: string): boolean {
@@ -100,10 +102,8 @@ function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: str
   const cleanPin = stripDeoSuffix(pinProvinceName).toLowerCase().trim();
   const cleanSelected = stripDeoSuffix(selectedProvinceName).toLowerCase().trim();
 
-  if (cleanPin === cleanSelected) return true;
-  if (cleanPin.startsWith(cleanSelected) || cleanSelected.startsWith(cleanPin)) return true;
-  if (cleanPin.includes(cleanSelected) || cleanSelected.includes(cleanPin)) return true;
-  return false;
+  // Exact equality first — avoids e.g. "Tarlac" matching "Nueva Ecija"
+  return cleanPin === cleanSelected;
 }
 
 function MapContent() {
