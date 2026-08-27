@@ -32,16 +32,17 @@ export default function RegionPage({ params }: RegionPageProps) {
     limit: 18,
   });
 
+  const projects = data?.projects;
   const provinces = useMemo(() => {
-    if (!data?.projects) return [];
+    if (!projects) return [];
     const set = new Set<string>();
-    for (const p of data.projects) {
+    for (const p of projects) {
       if (p.province?.name) {
         set.add(p.province.name);
       }
     }
     return Array.from(set).sort();
-  }, [data?.projects]);
+  }, [projects]);
 
   const flagsList = [
     { label: 'All Projects', value: '' },

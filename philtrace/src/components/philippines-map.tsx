@@ -45,12 +45,27 @@ const BASEMAP_STYLES = {
   streets: 'mapbox://styles/mapbox/outdoors-v12',
 };
 
+interface GeoFeature {
+  type: 'Feature';
+  id?: number | string;
+  properties?: Record<string, unknown>;
+  geometry: {
+    type: string;
+    coordinates: unknown;
+  };
+}
+
+interface GeoJSONData {
+  type: 'FeatureCollection';
+  features: GeoFeature[];
+}
+
 export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps) {
   const router = useRouter();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
 
-  const [geoData, setGeoData] = useState<any>(null);
+  const [geoData, setGeoData] = useState<GeoJSONData | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<RegionStat | null>(null);
   const [hoveredRegion, setHoveredRegion] = useState<RegionStat | null>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
@@ -85,8 +100,8 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
   const enrichedGeoJson = useMemo(() => {
     if (!geoData) return null;
 
-    const features = geoData.features.map((feature: any, index: number) => {
-      const rawName = feature.properties?.REGION || feature.properties?.name || '';
+    const features = geoData.features.map((feature: GeoFeature, index: number) => {
+      const rawName = (feature.properties?.REGION || feature.properties?.name || '') as string;
       const dbName = REGION_NAME_MAP[rawName] || rawName;
       const stat = statsMap.get(dbName);
       const density = stat?.anomalyDensity ?? 0;
@@ -162,7 +177,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
 
     map.addSource('ph-regions', {
       type: 'geojson',
-      data: enrichedGeoJson,
+      data: enrichedGeoJson as unknown as GeoJSON.FeatureCollection,
       generateId: true,
     });
 
@@ -277,16 +292,16 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
           setSelectedRegion(stat);
 
           // Calculate bounding box for smooth zoom
-          const coordinates = (feature.geometry as any).coordinates;
+          const coordinates = feature.geometry ? (feature.geometry as unknown as { coordinates: unknown }).coordinates : null;
           const bounds = new mapboxgl.LngLatBounds();
-          const processCoords = (coords: any) => {
-            if (typeof coords[0] === 'number') {
+          const processCoords = (coords: unknown) => {
+            if (Array.isArray(coords) && typeof coords[0] === 'number') {
               bounds.extend(coords as [number, number]);
-            } else {
+            } else if (Array.isArray(coords)) {
               coords.forEach(processCoords);
             }
           };
-          processCoords(coordinates);
+          if (coordinates) processCoords(coordinates);
 
           if (!bounds.isEmpty()) {
             map.fitBounds(bounds, { padding: 60, duration: 1400 });

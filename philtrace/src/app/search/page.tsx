@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense, useTransition } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useProjects, useContractors, type ProjectWithRelations, type ContractorItem } from '@/hooks/use-projects';
-import { formatCurrency, cleanContractorName, formatDate } from '@/lib/format';
+import { formatCurrency, cleanContractorName } from '@/lib/format';
 import { STATUS_COLORS, FLAG_COLORS, PROJECT_CATEGORIES } from '@/lib/constants';
 
 const SUGGESTED_QUERIES = [
@@ -33,13 +33,14 @@ function SearchContent() {
   const [projectSort, setProjectSort] = useState<string>('budgetPHP');
   const [projectOrder, setProjectOrder] = useState<string>('desc');
 
-  const [, startTransition] = useTransition();
-
   // Synchronize local input state if URL param changes
   useEffect(() => {
-    setInputQuery(rawQuery);
-    setProjectPage(1);
-    setContractorPage(1);
+    const timer = setTimeout(() => {
+      setInputQuery(rawQuery);
+      setProjectPage(1);
+      setContractorPage(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [rawQuery]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -66,7 +67,6 @@ function SearchContent() {
   const {
     data: projectData,
     isLoading: isProjectsLoading,
-    error: projectError,
   } = useProjects({
     q: rawQuery.trim() || undefined,
     page: projectPage,
@@ -82,7 +82,6 @@ function SearchContent() {
   const {
     data: contractorData,
     isLoading: isContractorsLoading,
-    error: contractorError,
   } = useContractors({
     q: rawQuery.trim() || undefined,
     page: contractorPage,
@@ -100,7 +99,7 @@ function SearchContent() {
   const hasQuery = rawQuery.trim().length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-6">
       {/* Search Header and Input */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <form onSubmit={handleSearchSubmit} className="space-y-4">
@@ -124,7 +123,7 @@ function SearchContent() {
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Search by project name, contractor, contract ID, region, or keyword..."
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 py-3.5 pl-12 pr-28 text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-full border border-gray-300 bg-gray-50 py-3.5 pl-12 pr-28 text-base text-gray-900 placeholder:text-gray-400 focus:border-[#01367d] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#01367d]/20"
             />
 
             <div className="absolute right-2.5 flex items-center gap-1.5">
@@ -132,7 +131,7 @@ function SearchContent() {
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition"
+                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition"
                   title="Clear search"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,7 +141,7 @@ function SearchContent() {
               )}
               <button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition"
+                className="rounded-full bg-[#01367d] px-5 py-2 text-sm font-extrabold text-white shadow-md hover:bg-[#ffb241] hover:text-[#01367d] transition"
               >
                 Search
               </button>

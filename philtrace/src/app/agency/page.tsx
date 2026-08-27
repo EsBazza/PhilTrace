@@ -63,12 +63,24 @@ export default function AgencyPortalPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="border-b border-gray-200 pb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Government Agency Portal</h1>
-        <p className="text-sm text-gray-500">
-          Official DPWH &amp; Implementing Agency Transparency Verification
-        </p>
+    <div className="max-w-3xl mx-auto space-y-8 py-6 px-4">
+      {/* Header Banner */}
+      <div className="relative rounded-3xl overflow-hidden bg-[#011438] text-white p-8 shadow-2xl border border-[#01367d]/20 text-center">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
+          style={{ backgroundImage: "url('/bg2.png')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#012456]/90 via-[#01367d]/80 to-[#011438]/95 pointer-events-none" />
+
+        <div className="relative z-10 space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-xs font-bold text-[#ffb241] border border-white/20">
+            OFFICIAL DPWH &amp; IMPLEMENTING AGENCY PORTAL
+          </div>
+          <h1 className="text-3xl font-black text-white">Government Agency Portal</h1>
+          <p className="text-sm text-white/80 max-w-lg mx-auto font-medium">
+            Publish official progress updates, verified completion metrics, and field inspection photos.
+          </p>
+        </div>
       </div>
 
       {!isLoggedIn ? (

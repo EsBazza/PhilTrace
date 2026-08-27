@@ -1,42 +1,57 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { SearchBar } from './search-bar';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-xl font-black bg-gradient-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-            MapaTunAI
-          </span>
+    <header className="sticky top-0 z-50 border-b border-[#01367d]/10 bg-[#eeeeee]/95 text-[#01367d] shadow-sm backdrop-blur-md">
+      <div className="w-full flex items-center justify-between gap-4 px-6 md:px-12 py-3.5">
+        
+        {/* Left: Brand Logo */}
+        <Link href="/" className="flex items-center gap-3 shrink-0 group">
+          <Image
+            src="/MAPATUNAI.png"
+            alt="MAPATUNAI Logo"
+            width={160}
+            height={45}
+            className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
+            priority
+          />
         </Link>
 
-        <div className="hidden sm:block flex-1 max-w-md">
-          <SearchBar />
-        </div>
-
-        <nav className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
-          <Link href="/" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
-            About
+        {/* Middle: Navigation Links */}
+        <nav className="hidden lg:flex items-center gap-8 text-sm font-bold text-[#01367d]">
+          <Link href="/" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
+            Home
           </Link>
-          <Link
-            href="/map"
-            className="flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-blue-700 whitespace-nowrap transition font-bold"
-          >
-            Full Map
+          <Link href="/map" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
+            Interactive Map
           </Link>
-          <Link href="/nearby" className="text-gray-600 hover:text-blue-700 whitespace-nowrap">
+          <Link href="/nearby" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
             Near Me
           </Link>
-          <Link href="/contractors" className="hidden sm:inline text-gray-600 hover:text-blue-700 whitespace-nowrap">
+          <Link href="/contractors" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
             Contractors
           </Link>
-
         </nav>
+
+        {/* Right: Search Input & Action Pill Button */}
+        <div className="flex items-center gap-3">
+          <div className="hidden md:block w-64 lg:w-72">
+            <SearchBar />
+          </div>
+
+          <Link
+            href="/map"
+            className="flex items-center bg-[#01367d] text-[#eeeeee] px-5 py-2.5 rounded-full font-extrabold shadow-md hover:bg-[#ffb241] hover:text-[#01367d] hover:scale-105 whitespace-nowrap transition-all text-xs sm:text-sm"
+          >
+            Explore Map
+          </Link>
+        </div>
       </div>
 
       {/* Mobile search bar */}
-      <div className="sm:hidden px-4 pb-3">
+      <div className="md:hidden px-6 pb-3 pt-1 border-t border-[#01367d]/10">
         <SearchBar />
       </div>
     </header>

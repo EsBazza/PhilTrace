@@ -107,6 +107,41 @@ function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: str
   return cleanPin === cleanSelected;
 }
 
+interface GeoFeature {
+  type: 'Feature';
+  id?: number | string;
+  properties?: Record<string, unknown>;
+  geometry: {
+    type: string;
+    coordinates: unknown;
+  };
+}
+
+interface GeoJSONData {
+  type: 'FeatureCollection';
+  features: GeoFeature[];
+}
+
+interface ProjectItem {
+  id: string;
+  name: string;
+  budgetPHP: number;
+  progress: number;
+  status: string;
+  gpsLat?: number;
+  gpsLng?: number;
+  isLive?: boolean;
+  flagOverdue?: boolean;
+  flagOverpaid?: boolean;
+  avgRating?: number;
+  province?: {
+    name?: string;
+    region?: {
+      name?: string;
+    };
+  };
+}
+
 function MapContent() {
   const searchParams = useSearchParams();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -119,14 +154,12 @@ function MapContent() {
   const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'streets'>('satellite');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [regionGeoJson, setRegionGeoJson] = useState<any>(null);
+  const [regionGeoJson, setRegionGeoJson] = useState<GeoJSONData | null>(null);
 
   // Drill-down State
   const [hierarchy, setHierarchy] = useState<LocationHierarchy | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [selectedProvince, setSelectedProvince] = useState<string>('');
-  const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterAnomaly, setFilterAnomaly] = useState<string>('All');
 
   // User GPS Location for 15km Rating Eligibility
@@ -144,17 +177,20 @@ function MapContent() {
 
   // Load URL search parameters if available
   useEffect(() => {
-    const r = searchParams.get('region');
-    const p = searchParams.get('province');
-    const projId = searchParams.get('project') || searchParams.get('projectId');
-    if (r) {
-      setSelectedRegion(r);
-      setMapMode('drill_down');
-    }
-    if (p) setSelectedProvince(p);
-    if (projId) {
-      setSelectedProjectId(projId);
-    }
+    const timer = setTimeout(() => {
+      const r = searchParams.get('region');
+      const p = searchParams.get('province');
+      const projId = searchParams.get('project') || searchParams.get('projectId');
+      if (r) {
+        setSelectedRegion(r);
+        setMapMode('drill_down');
+      }
+      if (p) setSelectedProvince(p);
+      if (projId) {
+        setSelectedProjectId(projId);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [searchParams]);
 
   // Fly map camera directly to project coordinates when selectedProjectId changes
@@ -242,8 +278,8 @@ function MapContent() {
     if (map.getLayer('ph-region-fill-layer')) map.removeLayer('ph-region-fill-layer');
     if (map.getSource('ph-region-source')) map.removeSource('ph-region-source');
 
-    const enrichedFeatures = regionGeoJson.features.map((feature: any) => {
-      const rawName = feature.properties?.REGION || feature.properties?.name || '';
+    const enrichedFeatures = regionGeoJson.features.map((feature: GeoFeature) => {
+      const rawName = (feature.properties?.REGION || feature.properties?.name || '') as string;
       const dbName = REGION_NAME_MAP[rawName] || rawName;
       const isSelected = selectedRegion && isMatchingRegion(dbName, selectedRegion);
       return {
@@ -261,7 +297,7 @@ function MapContent() {
       data: {
         ...regionGeoJson,
         features: enrichedFeatures,
-      },
+      } as unknown as GeoJSON.FeatureCollection,
     });
 
     // Translucent Region Fill Layer (ONLY selected region is highlighted)
@@ -322,18 +358,16 @@ function MapContent() {
       params.set('limit', '500');
       if (selectedRegion) params.set('region', selectedRegion);
       if (selectedProvince) params.set('province', selectedProvince);
-      if (filterCategory !== 'All') params.set('category', filterCategory);
       if (filterAnomaly !== 'All') params.set('flag', filterAnomaly);
-      if (searchQuery.trim()) params.set('q', searchQuery.trim());
 
       const res = await fetch(`/api/projects?${params.toString()}`);
       if (!res.ok) return;
 
       const data = await res.json();
-      const allProjects = data.projects || [];
+      const allProjects: ProjectItem[] = data.projects || [];
 
       // Filter projects strictly based on user selection
-      const visibleProjects = allProjects.filter((p: any) => {
+      const visibleProjects = allProjects.filter((p: ProjectItem) => {
         if (!p.gpsLat || !p.gpsLng) return false;
         const pinRegion = p.province?.region?.name || '';
         const pinProvince = p.province?.name || '';
@@ -348,7 +382,7 @@ function MapContent() {
       });
 
       // Ensure searched target project is ALWAYS included in visibleProjects even if filtered out
-      if (selectedProjectId && !visibleProjects.some((p: any) => p.id === selectedProjectId)) {
+      if (selectedProjectId && !visibleProjects.some((p: ProjectItem) => p.id === selectedProjectId)) {
         try {
           const targetRes = await fetch(`/api/projects/${selectedProjectId}`);
           if (targetRes.ok) {
@@ -363,6 +397,12 @@ function MapContent() {
         }
       }
 
+      // Re-verify map validity after async data fetching
+      const activeMap = mapRef.current;
+      if (!activeMap || typeof activeMap.getCanvasContainer !== 'function' || !activeMap.getCanvasContainer()) {
+        return;
+      }
+
       // Clear existing markers & popups cleanly
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -373,6 +413,7 @@ function MapContent() {
 
       // Render matching project pins with prominent glowing highlight for searched target project
       for (const p of visibleProjects) {
+        if (!p.gpsLng || !p.gpsLat) continue;
         visibleCoords.push([p.gpsLng, p.gpsLat]);
 
         const isTarget = selectedProjectId && p.id === selectedProjectId;
@@ -413,6 +454,8 @@ function MapContent() {
             ? isWithinReviewRadius(userLocation.lat, userLocation.lng, p.gpsLat, p.gpsLng, MAX_REVIEW_RADIUS_KM)
             : null;
 
+        const avgRatingVal = p.avgRating ?? 0;
+
         // Non-blocking Mapbox Popup
         const popup = new mapboxgl.Popup({
           offset: [0, isTarget ? -16 : -10],
@@ -446,29 +489,41 @@ function MapContent() {
             `
                 : ''
             }
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
-              <span>${p.avgRating > 0 ? `Rating: ${p.avgRating.toFixed(1)} / 5.0` : 'No reviews'}</span>
+            <div style="display: flex; align-items: justify; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
+              <span>${avgRatingVal > 0 ? `Rating: ${avgRatingVal.toFixed(1)} / 5.0` : 'No reviews'}</span>
               <span style="color: #38bdf8; font-weight: 800;">Inspect &rarr;</span>
             </div>
           </div>
         `);
 
         // If this is the searched project, automatically display its tooltip popup on map
-        if (isTarget) {
-          popup.addTo(map);
+        if (isTarget && activeMap?.getCanvasContainer()) {
+          try {
+            popup.addTo(activeMap);
+          } catch {
+            // Ignore map unmount race condition
+          }
         }
 
         el.addEventListener('mouseenter', () => {
-          if (!isTarget) {
-            el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
-            popup.addTo(map);
+          if (!isTarget && mapRef.current?.getCanvasContainer()) {
+            try {
+              el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
+              popup.addTo(mapRef.current);
+            } catch {
+              // Ignore
+            }
           }
         });
 
         el.addEventListener('mouseleave', () => {
           if (!isTarget) {
-            el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
-            popup.remove();
+            try {
+              el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
+              popup.remove();
+            } catch {
+              // Ignore
+            }
           }
         });
 
@@ -477,12 +532,18 @@ function MapContent() {
           setSelectedProjectId(p.id);
         });
 
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([p.gpsLng, p.gpsLat])
-          .addTo(map);
+        if (activeMap?.getCanvasContainer()) {
+          try {
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+              .setLngLat([p.gpsLng, p.gpsLat])
+              .addTo(activeMap);
 
-        markersRef.current.push(marker);
-        popupsRef.current.push(popup);
+            markersRef.current.push(marker);
+            popupsRef.current.push(popup);
+          } catch {
+            // Ignore map unmount race condition
+          }
+        }
       }
 
       // Smooth camera fit when province/city is selected without specific project selected
@@ -496,7 +557,7 @@ function MapContent() {
     } catch (err) {
       console.error('Error rendering map layers:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterCategory, filterAnomaly, searchQuery, selectedProjectId, userLocation]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, filterAnomaly, selectedProjectId, userLocation]);
 
   useEffect(() => {
     renderMapLayers();

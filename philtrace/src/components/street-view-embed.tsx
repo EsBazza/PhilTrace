@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 interface StreetViewEmbedProps {
   gpsLat: number;
   gpsLng: number;
@@ -9,10 +7,6 @@ interface StreetViewEmbedProps {
 }
 
 export default function StreetViewEmbed({ gpsLat, gpsLng, projectName }: StreetViewEmbedProps) {
-  const [viewMode, setViewMode] = useState<'streetview' | 'satellite'>('streetview');
-
-  // Google Street View Embed URL using standard coords
-  const streetViewUrl = `https://www.google.com/maps/embed/v1/streetview?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'demo'}&location=${gpsLat},${gpsLng}&heading=210&pitch=10&fov=80`;
   const googleMapsExternalUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${gpsLat},${gpsLng}`;
 
   return (

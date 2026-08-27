@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNearbyProjects, type ProjectWithRelations } from '@/hooks/use-projects';
@@ -80,7 +80,6 @@ export default function NearbyPage() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const [, startTransition] = useTransition();
 
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
@@ -115,11 +114,9 @@ export default function NearbyPage() {
     setGeoStatus('locating');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        startTransition(() => {
-          setLat(pos.coords.latitude);
-          setLng(pos.coords.longitude);
-          setGeoStatus('granted');
-        });
+        setLat(pos.coords.latitude);
+        setLng(pos.coords.longitude);
+        setGeoStatus('granted');
       },
       () => {
         setLat(14.5995);
@@ -130,7 +127,12 @@ export default function NearbyPage() {
     );
   }, []);
 
-  useEffect(() => { requestLocation(); }, [requestLocation]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      requestLocation();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [requestLocation]);
 
   // ─── Data Fetch & Radius Filtering ─────────────────────────────────────
   const { data, isLoading } = useNearbyProjects(lat, lng, radius);
@@ -179,6 +181,7 @@ export default function NearbyPage() {
       mapRef.current = null;
       setIsMapLoaded(false);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basemap]);
 
   // ─── Radius Circle + User Marker ─────────────────────────────────────────
@@ -210,7 +213,7 @@ export default function NearbyPage() {
     });
     if (map.getSource('radius-circle')) map.removeSource('radius-circle');
 
-    map.addSource('radius-circle', { type: 'geojson', data: createGeoJSONCircle([lng, lat], radius) as any });
+    map.addSource('radius-circle', { type: 'geojson', data: createGeoJSONCircle([lng, lat], radius) as unknown as GeoJSON.FeatureCollection });
     map.addLayer({ id: 'radius-circle-fill', type: 'fill', source: 'radius-circle', paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.08 } });
     map.addLayer({ id: 'radius-circle-line', type: 'line', source: 'radius-circle', paint: { 'line-color': '#38bdf8', 'line-width': 2, 'line-dasharray': [3, 2] } });
     return () => {
@@ -228,9 +231,10 @@ export default function NearbyPage() {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
+    const pinElsMap = pinElsRef.current;
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
-    pinElsRef.current.clear();
+    pinElsMap.clear();
 
     for (const p of projects) {
       if (!p.gpsLat || !p.gpsLng) continue;
@@ -249,16 +253,22 @@ export default function NearbyPage() {
         e.stopPropagation();
         handleSelectProject(p.id, p.gpsLng, p.gpsLat);
       });
-      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([p.gpsLng, p.gpsLat])
-        .addTo(map);
-      markersRef.current.push(marker);
-      pinElsRef.current.set(p.id, el);
+      try {
+        if (map.getCanvasContainer && map.getCanvasContainer()) {
+          const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([p.gpsLng, p.gpsLat])
+            .addTo(map);
+          markersRef.current.push(marker);
+          pinElsMap.set(p.id, el);
+        }
+      } catch {
+        // Ignore map unmounting race condition
+      }
     }
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
-      pinElsRef.current.clear();
+      pinElsMap.clear();
     };
   }, [isMapLoaded, projects, lat, lng, radius, handleSelectProject]);
 
@@ -278,13 +288,13 @@ export default function NearbyPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#0f172a', color: '#fff', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#011438', color: '#fff', overflow: 'hidden' }}>
 
       {/* ── Top Control Bar ──────────────────────────────────────────── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between',
-        gap: '10px', padding: '10px 16px', background: 'rgba(2,6,23,0.95)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0, zIndex: 20,
+        gap: '10px', padding: '10px 16px', background: 'rgba(1,54,125,0.95)',
+        borderBottom: '1px solid rgba(255,255,255,0.12)', flexShrink: 0, zIndex: 20,
       }}>
         {/* Left: title + radius */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>

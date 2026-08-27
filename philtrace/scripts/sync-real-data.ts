@@ -138,8 +138,9 @@ async function syncRealData() {
 
         totalSynced++;
       }
-    } catch (e: any) {
-      console.log(`Error on mirror ${mirror}:`, e.message);
+      console.log(`Synced ${totalSynced} projects from mirror ${mirror}`);
+    } catch (e: unknown) {
+      console.log(`Error on mirror ${mirror}:`, (e as Error).message);
     }
   }
 

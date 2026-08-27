@@ -24,7 +24,7 @@ export default function ReviewModal({
 }: ReviewModalProps) {
   const [rating, setRating] = useState<number>(5);
   const [progressRating, setProgressRating] = useState<number>(80);
-  const [qualityRating, setQualityRating] = useState<number>(4);
+  const [qualityRating] = useState<number>(4);
   const [workersActive, setWorkersActive] = useState<boolean>(true);
   const [comment, setComment] = useState<string>('');
   const [photoUrl, setPhotoUrl] = useState<string>('');
@@ -73,12 +73,15 @@ export default function ReviewModal({
 
   useEffect(() => {
     if (isOpen) {
-      requestGeolocation();
-      setErrorMsg(null);
-      setOtpSent(false);
-      setPhotoUrl('');
-      setPreviewUrl(null);
-      setIsUploadingPhoto(false);
+      const timer = setTimeout(() => {
+        requestGeolocation();
+        setErrorMsg(null);
+        setOtpSent(false);
+        setPhotoUrl('');
+        setPreviewUrl(null);
+        setIsUploadingPhoto(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, requestGeolocation]);
 
@@ -122,7 +125,7 @@ export default function ReviewModal({
         setPreviewUrl(null);
         setPhotoUrl('');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Photo upload error:', err);
       setErrorMsg('Network error while uploading photo.');
       setPreviewUrl(null);
@@ -231,8 +234,8 @@ export default function ReviewModal({
       } else {
         setErrorMsg(data.error || 'Failed to submit review.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Submission error');
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'Submission error');
     } finally {
       setIsSubmitting(false);
     }

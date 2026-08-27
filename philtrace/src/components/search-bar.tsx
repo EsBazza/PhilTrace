@@ -25,8 +25,6 @@ export function SearchBar() {
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
-      setSuggestions([]);
-      setIsOpen(false);
       return;
     }
 
@@ -74,6 +72,7 @@ export function SearchBar() {
   const handleSelectProject = (projectId: string) => {
     setIsOpen(false);
     setQuery('');
+    setSuggestions([]);
     router.push(`/map?project=${encodeURIComponent(projectId)}`);
   };
 
@@ -84,12 +83,19 @@ export function SearchBar() {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setQuery(val);
+              if (val.trim().length < 2) {
+                setSuggestions([]);
+                setIsOpen(false);
+              }
+            }}
             onFocus={() => {
               if (suggestions.length > 0) setIsOpen(true);
             }}
-            placeholder="Search projects, contract IDs, or location..."
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 pl-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="Search projects, contract IDs, location..."
+            className="w-full rounded-full border border-[#01367d]/20 bg-white px-4 py-2 pl-10 text-xs sm:text-sm text-[#01367d] font-medium placeholder:text-gray-400 focus:border-[#01367d] focus:outline-none focus:ring-2 focus:ring-[#01367d]/20 shadow-sm transition-all"
           />
           <svg
             className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"

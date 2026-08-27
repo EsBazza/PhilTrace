@@ -21,16 +21,17 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../src/lib/prisma';
 import { buildProvinceLookup } from '../src/lib/province-normalizer';
 import { computeAnomalyFlags } from '../src/lib/anomaly-flags';
-import { cleanContractorName, parseContractors, formatCurrency } from '../src/lib/format';
+import { cleanContractorName, parseContractors } from '../src/lib/format';
 
 // Attempt to load environment variables from .env or .env.local if present
 try {
   const envPath = path.resolve(process.cwd(), '.env');
   const envLocalPath = path.resolve(process.cwd(), '.env.local');
-  if (fs.existsSync(envLocalPath) && (process as any).loadEnvFile) {
-    (process as any).loadEnvFile(envLocalPath);
-  } else if (fs.existsSync(envPath) && (process as any).loadEnvFile) {
-    (process as any).loadEnvFile(envPath);
+  const proc = process as unknown as { loadEnvFile?: (p: string) => void };
+  if (fs.existsSync(envLocalPath) && proc.loadEnvFile) {
+    proc.loadEnvFile(envLocalPath);
+  } else if (fs.existsSync(envPath) && proc.loadEnvFile) {
+    proc.loadEnvFile(envPath);
   }
 } catch {
   // Ignore env file load errors in environments where env is already provided
@@ -301,7 +302,7 @@ async function seedPSGC(): Promise<{ regions: number; provinces: number }> {
                 }
               }
             } catch (pErr) {
-              console.warn(`    Warning: Could not fetch provinces for ${region.name} via API.`);
+              console.warn(`    Warning: Could not fetch provinces for ${region.name} via API:`, pErr);
             }
           }
           populatedFromApi = true;
@@ -309,7 +310,7 @@ async function seedPSGC(): Promise<{ regions: number; provinces: number }> {
         }
       }
     } catch (apiErr) {
-      console.warn('  -> PSA PSGC API request failed or timed out. Using static fallback data.');
+      console.warn('  -> PSA PSGC API request failed or timed out:', apiErr);
     }
   }
 
@@ -540,7 +541,6 @@ async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects
       const fetchedProjects: RawHFProject[] = [];
       let offset = 0;
       let hasMore = true;
-      let totalDatasetRows = 0;
 
       while (fetchedProjects.length < targetCount && hasMore) {
         const fetchLength = Math.min(HF_BATCH_SIZE, targetCount - fetchedProjects.length);
@@ -558,7 +558,7 @@ async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects
           break;
         }
 
-        totalDatasetRows = data.num_rows_total || 0;
+        const totalDatasetRows = data.num_rows_total || 0;
         for (const item of data.rows) {
           if (item && item.row) {
             fetchedProjects.push(item.row);
@@ -567,7 +567,7 @@ async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects
 
         offset += fetchLength;
         const progressPct = Math.min(100, Math.round((fetchedProjects.length / targetCount) * 100));
-        process.stdout.write(`\r     Progress: [${progressPct}%] ${fetchedProjects.length}/${targetCount} fetched...`);
+        process.stdout.write(`\r     Progress: [${progressPct}%] ${fetchedProjects.length}/${targetCount} (total ${totalDatasetRows}) fetched...`);
 
         // Small delay to be polite to HF API
         await new Promise((r) => setTimeout(r, 120));
@@ -578,8 +578,8 @@ async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects
         console.log(`  ✓ Successfully fetched ${fetchedProjects.length} projects from Hugging Face (${datasetName}).`);
         return { projects: fetchedProjects, source: `huggingface:${datasetName}` };
       }
-    } catch (err: any) {
-      console.warn(`  -> Failed fetching from "${datasetName}": ${err?.message || err}`);
+    } catch (err: unknown) {
+      console.warn(`  -> Failed fetching from "${datasetName}": ${(err as Error)?.message || err}`);
     }
   }
 
@@ -739,8 +739,8 @@ async function seedProjectsAndContractors(targetCount: number): Promise<{ projec
 
         contractorStats.set(cleaned, current);
       }
-    } catch (err: any) {
-      console.warn(`    Failed to upsert project ${projectId}: ${err?.message || err}`);
+    } catch (err: unknown) {
+      console.warn(`    Failed to upsert project ${projectId}: ${(err as Error)?.message || err}`);
     }
 
     if ((i + 1) % 250 === 0 || i === rawProjects.length - 1) {
@@ -775,8 +775,8 @@ async function seedProjectsAndContractors(targetCount: number): Promise<{ projec
         },
       });
       contractorUpsertCount++;
-    } catch (cErr: any) {
-      console.warn(`    Failed to upsert contractor "${name}": ${cErr?.message || cErr}`);
+    } catch (cErr: unknown) {
+      console.warn(`    Failed to upsert contractor "${name}": ${(cErr as Error)?.message || cErr}`);
     }
   }
 
@@ -960,15 +960,19 @@ async function main() {
   try {
     // Step 1: Regions & Provinces
     const psgcStats = await seedPSGC();
+    console.log(`Seeded PSGC: ${psgcStats.regions} regions, ${psgcStats.provinces} provinces.`);
 
     // Step 2: Agency Accounts
     const agencyCount = await seedAgencyAccounts();
+    console.log(`Seeded ${agencyCount} agency accounts.`);
 
     // Step 3: Projects and Contractors
     const projectStats = await seedProjectsAndContractors(TARGET_PROJECTS_COUNT);
+    console.log(`Seeded projects: ${projectStats.projectsCount} upserted, ${projectStats.contractorsCount} contractors.`);
 
     // Step 4: Whistleblower Reports and Agency Updates
     const feedbackStats = await seedWhistleblowerAndUpdates();
+    console.log(`Seeded feedback: ${feedbackStats.commentsCount} comments, ${feedbackStats.updatesCount} updates.`);
 
     // Fetch final database metrics
     const [

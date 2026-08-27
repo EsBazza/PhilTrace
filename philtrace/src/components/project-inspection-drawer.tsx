@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatCurrency, formatDate, cleanContractorName } from '@/lib/format';
-import { STATUS_COLORS, FLAG_COLORS } from '@/lib/constants';
+import { STATUS_COLORS } from '@/lib/constants';
 import WaybackSlider from '@/components/wayback-slider';
 import StreetViewEmbed from '@/components/street-view-embed';
 import ReviewModal from '@/components/review-modal';
@@ -47,13 +47,23 @@ interface ProjectInspectionDrawerProps {
   onClose: () => void;
 }
 
+interface ReviewItem {
+  id: string;
+  rating: number;
+  createdAt: string;
+  phoneVerified?: boolean;
+  comment: string;
+  photoUrl?: string | null;
+  workersActive?: boolean | null;
+  corroborations?: number;
+}
+
 export default function ProjectInspectionDrawer({
   projectId,
   onClose,
 }: ProjectInspectionDrawerProps) {
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [reviewStats, setReviewStats] = useState<any>(null);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeMediaTab, setActiveMediaTab] = useState<'wayback' | 'streetview'>('wayback');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
@@ -88,7 +98,6 @@ export default function ProjectInspectionDrawer({
       if (rRes.ok) {
         const rData = await rRes.json();
         setReviews(rData.reviews || []);
-        setReviewStats(rData.stats || null);
       }
     } catch (err) {
       console.error('Failed to load project drawer:', err);
@@ -98,11 +107,14 @@ export default function ProjectInspectionDrawer({
   };
 
   useEffect(() => {
-    if (projectId) {
-      loadProject(projectId);
-    } else {
-      setProject(null);
-    }
+    const timer = setTimeout(() => {
+      if (projectId) {
+        loadProject(projectId);
+      } else {
+        setProject(null);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [projectId]);
 
   const handleExplainWithAi = async () => {

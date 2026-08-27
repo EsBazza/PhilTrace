@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
-import { DEMO_PHONE_NUMBER, MAX_REPORTS_PER_PHONE_PER_PROJECT, MAX_REPORTS_PER_IP_PER_DAY } from '@/lib/constants';
+import { DEMO_PHONE_NUMBER, MAX_REPORTS_PER_PHONE_PER_PROJECT } from '@/lib/constants';
 import { getAllActiveFlags } from '@/lib/anomaly-flags';
 
 interface ReportBody {
@@ -34,10 +34,6 @@ export async function POST(request: NextRequest) {
     const phoneCount = await prisma.comment.count({
       where: { projectId, text: { not: '' } },
     });
-
-    // Approximate phone-based rate limiting using comment count
-    // In production, we'd track phone numbers on comments
-    const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? 'unknown';
 
     // Check per-project phone limit
     if (phoneCount >= MAX_REPORTS_PER_PHONE_PER_PROJECT * 10) {

@@ -17,14 +17,22 @@ export default function WaybackSlider({ gpsLat, gpsLng, startDate }: WaybackSlid
   const startYear = startDate ? new Date(startDate).getFullYear() : 2021;
   const currentYear = new Date().getFullYear();
 
-  // ESRI Wayback Satellite Tile URLs (Historical vs Current)
-  // ESRI Wayback provides historical WMTS world imagery layers
-  const pastTileUrl = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default/default/GoogleMapsCompatible/{z}/{y}/{x}?WB_LAYER_DATE=2021-02-17`;
-  const currentTileUrl = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default/default/GoogleMapsCompatible/{z}/{y}/{x}?WB_LAYER_DATE=2024-05-15`;
-
   // Static high-res imagery preview endpoints
   const pastImageUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${gpsLng - 0.005},${gpsLat - 0.003},${gpsLng + 0.005},${gpsLat + 0.003}&bboxSR=4326&imageSR=4326&size=800,500&format=jpg&f=image`;
   const currentImageUrl = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${gpsLng},${gpsLat},16,0/800x500?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`;
+
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setContainerWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const handleMove = useCallback((clientX: number) => {
     if (!containerRef.current) return;
@@ -98,7 +106,7 @@ export default function WaybackSlider({ gpsLat, gpsLng, startDate }: WaybackSlid
             src={pastImageUrl}
             alt="Historical Satellite View"
             className="absolute inset-0 h-full max-w-none object-cover pointer-events-none"
-            style={{ width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%' }}
+            style={{ width: containerWidth ? `${containerWidth}px` : '100%' }}
           />
         </div>
 
