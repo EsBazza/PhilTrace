@@ -580,7 +580,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
               onClick={() => router.push(`/regions/${encodeURIComponent(selectedRegion.name)}`)}
               className="mt-4 w-full rounded-xl bg-blue-600 py-2.5 text-center text-xs font-bold text-white shadow-lg hover:bg-blue-700 transition"
             >
-              Open Full {selectedRegion.name} Audit &rarr;
+              Open Full {selectedRegion.name} Overview &rarr;
             </button>
           </div>
         )}

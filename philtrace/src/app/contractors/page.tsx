@@ -227,7 +227,7 @@ export default function ContractorsPage() {
               <span className="text-[#ffb241]">AI</span> Contractors
             </h1>
             <p className="text-sm sm:text-base text-white/85 max-w-2xl font-medium leading-relaxed">
-              Audit joint-venture co-occurrences, historical project delays, and dominant contractors across 248,000+ public works contracts.
+              Explore joint-venture co-occurrences, historical project delays, and dominant contractors across 248,000+ public works contracts.
             </p>
           </div>
 
@@ -532,7 +532,7 @@ export default function ContractorsPage() {
                               </span>
                             )}
 
-                            {/* Audit CTA Pill */}
+                            {/* View Projects CTA Pill */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -540,7 +540,7 @@ export default function ContractorsPage() {
                               }}
                               className="rounded-full bg-[#01367d] px-6 py-2.5 text-xs sm:text-sm font-black text-white shadow-md hover:bg-[#ffb241] hover:text-[#01367d] hover:scale-105 transition-all duration-200 whitespace-nowrap"
                             >
-                              Audit Projects &rarr;
+                              View Projects &rarr;
                             </button>
                           </div>
                         </div>
@@ -589,7 +589,7 @@ export default function ContractorsPage() {
               
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <span className="text-xs font-black uppercase tracking-wider text-gray-400">National Registry Summary</span>
-                <span className="text-xs font-black text-[#01367d]">2026 Audit</span>
+                <span className="text-xs font-black text-[#01367d]">2026 Overview</span>
               </div>
 
               {/* 3 Metric Badges Row (Klatschboard Style) */}
@@ -666,12 +666,12 @@ export default function ContractorsPage() {
                     </div>
                   </div>
 
-                  {/* Full Audit Button */}
+                  {/* Full Projects Button */}
                   <button
                     onClick={() => router.push(`/search?q=${encodeURIComponent(activeContractor.label)}`)}
                     className="w-full mt-4 rounded-full bg-[#01367d] py-3.5 text-center text-xs sm:text-sm font-black text-white shadow-xl hover:bg-[#ffb241] hover:text-[#01367d] hover:scale-105 transition-all duration-200"
                   >
-                    Audit All Won Projects &rarr;
+                    View All Won Projects &rarr;
                   </button>
                 </div>
               ) : (

@@ -35,18 +35,11 @@ export function Header() {
           </Link>
         </nav>
 
-        {/* Right: Search Input & Action Pill Button */}
+        {/* Right: Search Input */}
         <div className="flex items-center gap-3">
           <div className="hidden md:block w-64 lg:w-72">
             <SearchBar />
           </div>
-
-          <Link
-            href="/map"
-            className="flex items-center bg-[#01367d] text-[#eeeeee] px-5 py-2.5 rounded-full font-extrabold shadow-md hover:bg-[#ffb241] hover:text-[#01367d] hover:scale-105 whitespace-nowrap transition-all text-xs sm:text-sm"
-          >
-            Explore Map
-          </Link>
         </div>
       </div>
 

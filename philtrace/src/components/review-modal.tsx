@@ -247,7 +247,7 @@ export default function ReviewModal({
         <div className="flex items-start justify-between pb-3 border-b border-gray-100">
           <div>
             <div className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 uppercase tracking-wider">
-              Citizen Ground-Truth Audit
+              Citizen Ground-Truth Report
             </div>
             <h3 className="text-base font-bold text-gray-900 line-clamp-1 mt-0.5">{projectName}</h3>
           </div>

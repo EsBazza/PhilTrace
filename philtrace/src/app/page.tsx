@@ -72,7 +72,7 @@ export default function AboutAndHomePage() {
           <div className="hidden sm:flex items-center gap-4 text-xs font-semibold text-white/90">
             <span>Real-Time Satellite Proof</span>
             <span>•</span>
-            <span>248k Audited Contracts</span>
+            <span>248k Tracked Contracts</span>
           </div>
         </div>
 
@@ -87,16 +87,16 @@ export default function AboutAndHomePage() {
           </div>
 
           <p className="text-base sm:text-xl lg:text-2xl font-medium text-white/90 max-w-2xl leading-relaxed drop-shadow-md">
-            Audit public infrastructure contracts across the Philippines with curated ground-truth reports, satellite proof, and citizen oversight all in one platform.
+            Mapping What&apos;s Real — Exposing Ghost Projects Across the Philippines
           </p>
 
           {/* Rounded Pill Action Buttons */}
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <Link
-              href="/map"
+              href="/contractors"
               className="flex items-center gap-3 rounded-full bg-white px-8 py-4 text-base font-extrabold text-[#01367d] shadow-xl hover:bg-[#ffb241] hover:scale-105 transition-all duration-200"
             >
-              Plan Your Audit &rarr;
+              Contractors &rarr;
             </Link>
 
             <Link
@@ -109,9 +109,8 @@ export default function AboutAndHomePage() {
         </div>
 
         {/* Subtitle bottom banner */}
-        <div className="relative z-10 w-full flex items-center justify-between text-xs sm:text-sm text-white/80 border-t border-white/20 pt-6">
-          <p className="font-semibold text-white">mapping what&apos;s real — exposing ghost projects across the philippines</p>
-          <p className="hidden md:block font-mono text-[#ffb241] font-bold">DPWH Public Data Verified</p>
+        <div className="relative z-10 w-full flex items-center justify-end text-xs sm:text-sm text-white/80 border-t border-white/20 pt-6">
+          <p className="font-mono text-[#ffb241] font-bold">DPWH Public Data Verified</p>
         </div>
       </section>
 
@@ -126,7 +125,7 @@ export default function AboutAndHomePage() {
                 Why Thousands of Citizens Trust <span className="text-[#a80101]">MAPA</span><span className="text-[#01367d]">TUN</span><span className="text-[#ffb241]">AI</span> for Infrastructure Accountability
               </h2>
               <p className="text-base sm:text-lg text-gray-700 leading-relaxed font-medium">
-                From local road paving to multi-billion peso bridge projects, we make exploring and auditing Philippine public funds accessible, transparent, and verified with expert-crafted satellite telemetry and round-the-clock ground truth support.
+                Every public infrastructure project in the Philippines is investigated by contrasting three separate layers of evidence: official government records, ground-level citizen reports, and satellite imagery.
               </p>
             </div>
 
@@ -165,7 +164,7 @@ export default function AboutAndHomePage() {
                   {isLoading ? '...' : (data?.totalContracts ? `${Math.round(data.totalContracts / 1000)}k` : '248k')}
                 </p>
                 <p className="text-xs font-bold text-gray-600 leading-tight">
-                  Audited Public Contracts
+                  Public Contracts Tracked
                 </p>
               </div>
 
@@ -274,7 +273,7 @@ export default function AboutAndHomePage() {
               Regional Infrastructure Anomaly Risk
             </h2>
             <p className="text-base sm:text-lg text-white/80 font-medium">
-              Audit all 18 administrative regions across the Philippine archipelago. Select any region to inspect district engineering offices.
+              Select any of the 18 administrative regions across the Philippine archipelago to inspect district engineering offices and contractors.
             </p>
           </div>
 

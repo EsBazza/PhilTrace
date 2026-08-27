@@ -7,7 +7,7 @@ import { MainLayoutWrapper } from '@/components/main-layout-wrapper';
 
 export const metadata: Metadata = {
   title: "MapaTunAI: Mapping What's Real — Exposing Ghost Projects Across the Philippines",
-  description: "MapaTunAI: Mapping What's Real — Exposing Ghost Projects Across the Philippines. Track, investigate, and audit public infrastructure contracts with citizen truth and satellite proof.",
+  description: "MapaTunAI: Mapping What's Real — Exposing Ghost Projects Across the Philippines. Track, investigate, and verify public infrastructure contracts with citizen truth and satellite proof.",
 };
 
 export default function RootLayout({
