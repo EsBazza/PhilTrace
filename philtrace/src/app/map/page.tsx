@@ -130,7 +130,6 @@ interface ProjectItem {
   status: string;
   gpsLat?: number;
   gpsLng?: number;
-  isLive?: boolean;
   flagOverdue?: boolean;
   flagOverpaid?: boolean;
   avgRating?: number;
@@ -421,8 +420,6 @@ function MapContent() {
         const statusColor =
           p.flagOverdue || p.flagOverpaid
             ? '#ef4444'
-            : p.isLive
-            ? '#3b82f6'
             : '#10b981';
 
         // Marker DOM Element

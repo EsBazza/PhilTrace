@@ -611,11 +611,6 @@ function SearchContent() {
 
                       {/* Anomaly flags & Live badge */}
                       <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-1">
-                        {project.isLive && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2 py-0.5 text-xs font-semibold text-red-700">
-                            LIVE
-                          </span>
-                        )}
                         {flags.map((flag) => (
                           <span
                             key={flag}
@@ -626,7 +621,7 @@ function SearchContent() {
                             {flag}
                           </span>
                         ))}
-                        {flags.length === 0 && !project.isLive && (
+                        {flags.length === 0 && (
                           <span className="text-xs text-gray-400">No anomaly flags</span>
                         )}
                       </div>

@@ -18,9 +18,6 @@ export async function GET(
           where: { phoneVerified: true },
           orderBy: { createdAt: 'desc' },
         },
-        agencyUpdates: {
-          orderBy: { createdAt: 'desc' },
-        },
       },
     });
 

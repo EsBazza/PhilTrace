@@ -46,8 +46,6 @@ interface ProjectWithRelations {
   sourceOfFunds: string | null;
   programName: string | null;
   infraYear: string | null;
-  isLive: boolean;
-  livestreamUrl: string | null;
   hasSatelliteImage: boolean;
   reportCount: number;
   flagStalled: boolean;
@@ -120,14 +118,6 @@ export function useProject(id: string) {
       severity: string;
       rationale: string;
       corroborationCount: number;
-      photoUrl: string | null;
-      createdAt: string;
-    }>;
-    agencyUpdates: Array<{
-      id: string;
-      agencyName: string;
-      percentDone: number;
-      note: string;
       photoUrl: string | null;
       createdAt: string;
     }>;

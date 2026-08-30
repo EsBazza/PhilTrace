@@ -1,4 +1,4 @@
-import type { Project, AgencyUpdate } from '@prisma/client';
+import type { Project } from '@prisma/client';
 
 export interface AnomalyFlags {
   flagStalled: boolean;
@@ -18,14 +18,14 @@ const STALLED_DAYS = 180;
  */
 export function computeAnomalyFlags(
   project: Pick<Project, 'status' | 'progress' | 'startDate' | 'completionDate' | 'amountPaid' | 'budgetPHP'>,
-  latestAgencyUpdate: Pick<AgencyUpdate, 'createdAt'> | null,
+  latestUpdate: { createdAt: Date } | null,
   commentCount: number
 ): AnomalyFlags {
   const now = new Date();
 
   // flagStalled: On-Going, no agency update in 180+ days, progress unchanged
-  const daysSinceUpdate = latestAgencyUpdate
-    ? (now.getTime() - new Date(latestAgencyUpdate.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+  const daysSinceUpdate = latestUpdate
+    ? (now.getTime() - new Date(latestUpdate.createdAt).getTime()) / (1000 * 60 * 60 * 24)
     : Infinity;
   const flagStalled =
     project.status === 'On-Going' &&

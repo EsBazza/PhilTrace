@@ -348,8 +348,6 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
           el.style.backgroundColor =
             p.flagOverdue || p.flagOverpaid
               ? '#ef4444'
-              : p.isLive
-              ? '#3b82f6'
               : '#10b981';
           el.style.border = '2px solid white';
           el.style.boxShadow = '0 0 8px rgba(0,0,0,0.6)';

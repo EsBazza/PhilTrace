@@ -21,8 +21,6 @@ interface DPWHProject {
   infraYear: string;
   programName: string;
   sourceOfFunds: string;
-  isLive: boolean;
-  livestreamUrl: string | null;
   latitude: number;
   longitude: number;
   reportCount: number;
@@ -138,8 +136,6 @@ export async function POST(request: NextRequest) {
               sourceOfFunds: p.sourceOfFunds,
               programName: p.programName,
               infraYear: p.infraYear,
-              isLive: p.isLive,
-              livestreamUrl: p.livestreamUrl,
               hasSatelliteImage: p.hasSatelliteImage,
               reportCount: p.reportCount,
               syncSource: 'huggingface',
@@ -162,8 +158,6 @@ export async function POST(request: NextRequest) {
               sourceOfFunds: p.sourceOfFunds,
               programName: p.programName,
               infraYear: p.infraYear,
-              isLive: p.isLive,
-              livestreamUrl: p.livestreamUrl,
               hasSatelliteImage: p.hasSatelliteImage,
               reportCount: p.reportCount,
               syncSource: 'huggingface',

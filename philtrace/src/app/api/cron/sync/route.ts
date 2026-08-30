@@ -21,8 +21,6 @@ interface DPWHProject {
   infraYear: string;
   programName: string;
   sourceOfFunds: string;
-  isLive: boolean;
-  livestreamUrl: string | null;
   latitude: number;
   longitude: number;
   reportCount: number;
@@ -142,11 +140,8 @@ async function upsertProjects(projects: DPWHProject[], source: string): Promise<
       if (isNaN(startDate.getTime())) continue;
 
       // Compute anomaly flags
-      const latestUpdate = await prisma.agencyUpdate.findFirst({
-        where: { projectId: p.contractId },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
-      });
+      // Note: AgencyUpdate model removed in Phase 1 cleanup
+      const latestUpdate = null;
 
       const commentCount = await prisma.comment.count({
         where: { projectId: p.contractId },
@@ -184,8 +179,6 @@ async function upsertProjects(projects: DPWHProject[], source: string): Promise<
             sourceOfFunds: p.sourceOfFunds,
             programName: p.programName,
             infraYear: p.infraYear,
-            isLive: p.isLive,
-            livestreamUrl: p.livestreamUrl,
             hasSatelliteImage: p.hasSatelliteImage,
             reportCount: p.reportCount,
             syncSource: source,
@@ -208,8 +201,6 @@ async function upsertProjects(projects: DPWHProject[], source: string): Promise<
             sourceOfFunds: p.sourceOfFunds,
             programName: p.programName,
             infraYear: p.infraYear,
-            isLive: p.isLive,
-            livestreamUrl: p.livestreamUrl,
             hasSatelliteImage: p.hasSatelliteImage,
             reportCount: p.reportCount,
             syncSource: source,

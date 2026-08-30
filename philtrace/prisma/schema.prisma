@@ -8,6 +8,27 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─── Enums ──────────────────────────────────────────────────
+
+enum ExtractionStatus {
+  PENDING
+  PARSED
+  FAILED
+}
+
+enum ConnectionType {
+  NEWS_MENTION
+  SHARED_ADDRESS
+  CONGRESS_RECORD
+}
+
+enum Confidence {
+  REPORTED
+  UNCONFIRMED
+}
+
+// ─── Geographic Models ──────────────────────────────────────
+
 model Region {
   id         String     @id @default(cuid())
   psgcCode   String     @unique
@@ -25,16 +46,18 @@ model Province {
   @@unique([name, regionId])
 }
 
+// ─── Core Project Model ─────────────────────────────────────
+
 model Project {
-  id                 String         @id
+  id                 String            @id
   name               String
   provinceId         String
-  province           Province       @relation(fields: [provinceId], references: [id])
+  province           Province          @relation(fields: [provinceId], references: [id])
   gpsLat             Float
   gpsLng             Float
   budgetPHP          Float
-  amountPaid         Float          @default(0)
-  progress           Float          @default(0)
+  amountPaid         Float             @default(0)
+  progress           Float             @default(0)
   startDate          DateTime
   completionDate     DateTime?
   status             String
@@ -43,25 +66,25 @@ model Project {
   sourceOfFunds      String?
   programName        String?
   infraYear          String?
-  isLive             Boolean        @default(false)
-  livestreamUrl      String?
-  hasSatelliteImage  Boolean        @default(false)
-  reportCount        Int            @default(0)
-  avgRating          Float          @default(0)
-  reviewCount        Int            @default(0)
-  flagStalled        Boolean        @default(false)
-  flagNeverStarted   Boolean        @default(false)
-  flagOverdue        Boolean        @default(false)
-  flagPaymentPending Boolean        @default(false)
-  flagOverpaid       Boolean        @default(false)
+  hasSatelliteImage  Boolean           @default(false)
+  reportCount        Int               @default(0)
+  avgRating          Float             @default(0)
+  reviewCount        Int               @default(0)
+  flagStalled        Boolean           @default(false)
+  flagNeverStarted   Boolean           @default(false)
+  flagOverdue        Boolean           @default(false)
+  flagPaymentPending Boolean           @default(false)
+  flagOverpaid       Boolean           @default(false)
   lastActivityAt     DateTime?
   aiSummary          String?
   syncSource         String?
   comments           Comment[]
   reviews            Review[]
-  agencyUpdates      AgencyUpdate[]
-  updatedAt          DateTime       @updatedAt
+  contractDocument   ContractDocument?
+  updatedAt          DateTime          @updatedAt
 }
+
+// ─── Citizen Engagement Models ──────────────────────────────
 
 model Review {
   id               String   @id @default(cuid())
@@ -86,16 +109,6 @@ model Review {
   @@index([rating])
 }
 
-model Contractor {
-  id              String  @id @default(cuid())
-  name            String  @unique
-  totalContracts  Int     @default(0)
-  totalValuePHP   Float   @default(0)
-  avgProgress     Float   @default(0)
-  overdueCount    Int     @default(0)
-  terminatedCount Int     @default(0)
-}
-
 model Comment {
   id                 String   @id @default(cuid())
   projectId          String
@@ -109,24 +122,104 @@ model Comment {
   createdAt          DateTime @default(now())
 }
 
-model AgencyUpdate {
-  id          String   @id @default(cuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id])
-  agencyName  String
-  percentDone Int
-  note        String
-  photoUrl    String?
-  createdAt   DateTime @default(now())
+// ─── Contractor Models ──────────────────────────────────────
+
+model Contractor {
+  id              String                @id @default(cuid())
+  name            String                @unique
+  totalContracts  Int                   @default(0)
+  totalValuePHP   Float                 @default(0)
+  avgProgress     Float                 @default(0)
+  overdueCount    Int                   @default(0)
+  terminatedCount Int                   @default(0)
+  connections     ContractorConnection[]
 }
 
-model AgencyAccount {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  agencyName   String
-  createdAt    DateTime @default(now())
+// ─── Contract Document & BOQ Models ─────────────────────────
+
+model ContractDocument {
+  id                   String            @id @default(cuid())
+  projectId            String            @unique
+  project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourcePdfUrl         String
+  contractorLegalName  String?
+  contractorAddress    String?
+  authorizedOfficer    String?
+  tinNumber            String?
+  contractDurationDays Int?
+  extractionStatus     ExtractionStatus  @default(PENDING)
+  parsedAt             DateTime?
+  billOfQuantities     BillOfQuantity[]
+  engineerSignature    EngineerSignature?
+
+  @@index([extractionStatus])
 }
+
+model BillOfQuantity {
+  id            String           @id @default(cuid())
+  contractDocId String
+  contractDoc   ContractDocument @relation(fields: [contractDocId], references: [id], onDelete: Cascade)
+  itemCode      String
+  description   String
+  quantity      Float
+  unit          String
+  unitCostPhp   Float
+  totalPhp      Float
+
+  @@index([itemCode])
+  @@index([contractDocId])
+}
+
+model EngineerSignature {
+  id            String           @id @default(cuid())
+  contractDocId String           @unique
+  contractDoc   ContractDocument @relation(fields: [contractDocId], references: [id], onDelete: Cascade)
+  engineerName  String
+  engineerTitle String
+  district      String?
+
+  @@index([engineerName])
+}
+
+// ─── Contractor Intelligence Models ─────────────────────────
+
+model ContractorConnection {
+  id             String         @id @default(cuid())
+  contractorId   String
+  contractor     Contractor     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  connectedName  String
+  connectionType ConnectionType
+  sourceUrl      String
+  sourceLabel    String
+  confidence     Confidence     @default(UNCONFIRMED)
+  createdAt      DateTime       @default(now())
+
+  @@index([contractorId])
+  @@index([connectedName])
+}
+
+model UnitPriceBenchmark {
+  id             String   @id @default(cuid())
+  itemCode       String
+  description    String
+  nationalAvgPhp Float
+  regionalAvgPhp Float?
+  regionId       String?
+  sampleCount    Int
+  lastComputedAt DateTime
+
+  @@unique([itemCode, regionId])
+  @@index([itemCode])
+}
+
+model Politician {
+  name     String  @id
+  position String
+  district String
+  term     String?
+}
+
+// ─── System Models ──────────────────────────────────────────
 
 model OtpCode {
   id        String   @id @default(cuid())

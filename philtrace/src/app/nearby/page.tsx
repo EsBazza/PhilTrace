@@ -49,7 +49,6 @@ function createGeoJSONCircle(center: [number, number], radiusKm: number, points 
 
 function getStatusColor(project: NearbyProject) {
   if (project.flagOverdue || project.flagOverpaid) return '#ef4444';
-  if (project.isLive) return '#3b82f6';
   return '#10b981';
 }
 

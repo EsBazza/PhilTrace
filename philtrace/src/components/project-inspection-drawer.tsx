@@ -24,8 +24,6 @@ interface ProjectDetail {
   sourceOfFunds?: string | null;
   programName?: string | null;
   infraYear?: string | null;
-  isLive: boolean;
-  livestreamUrl?: string | null;
   hasSatelliteImage: boolean;
   reportCount: number;
   avgRating: number;
@@ -164,12 +162,6 @@ export default function ProjectInspectionDrawer({
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 {project?.province?.name ? `${project.province.name}, ${project.province.region?.name || ''}` : 'DPWH Contract'}
               </span>
-              {project?.isLive && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-ping" />
-                  LIVE
-                </span>
-              )}
             </div>
             <h2 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">
               {isLoading ? 'Loading project details...' : project?.name}
