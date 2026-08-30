@@ -52,61 +52,6 @@ const REGION_NAME_MAP: Record<string, string> = {
   'Zamboanga Peninsula (Region IX)': 'Region IX',
 };
 
-const PROVINCE_CENTERS: Record<string, [number, number]> = {
-  'Ilocos Norte': [120.70, 18.19],
-  'Ilocos Sur': [120.55, 17.30],
-  'La Union': [120.38, 16.62],
-  'Pangasinan': [120.33, 15.92],
-  'Pampanga': [120.68, 15.05],
-  'Bataan': [120.48, 14.68],
-  'Bulacan': [120.97, 14.95],
-  'Tarlac': [120.58, 15.48],
-  'Zambales': [120.10, 15.30],
-  'Nueva Ecija': [121.05, 15.58],
-  'Aurora': [121.55, 15.75],
-  'Benguet': [120.60, 16.42],
-  'Cebu': [123.89, 10.31],
-  'Davao del Sur': [125.35, 6.75],
-  'Iloilo': [122.56, 10.72],
-  'Cavite': [120.90, 14.28],
-  'Rizal': [121.15, 14.60],
-  'Laguna': [121.32, 14.20],
-  'Batangas': [121.05, 13.80],
-  'Quezon': [121.70, 14.00],
-};
-
-function stripDeoSuffix(deoName: string): string {
-  let result = deoName.trim();
-  result = result.replace(/ City DEO$/i, '');
-  result = result.replace(/ \d+(?:st|nd|rd|th) DEO$/i, '');
-  result = result.replace(/ DEO$/i, '');
-  result = result.replace(/ Sub DEO$/i, '');
-  return result.trim();
-}
-
-function isMatchingRegion(pinRegionName?: string, selectedRegionName?: string): boolean {
-  if (!selectedRegionName) return true;
-  if (!pinRegionName) return false;
-
-  // Normalize both sides through the same map so we compare canonical DB names
-  const normPin = (REGION_NAME_MAP[pinRegionName] || pinRegionName).toLowerCase().trim();
-  const normSelected = (REGION_NAME_MAP[selectedRegionName] || selectedRegionName).toLowerCase().trim();
-
-  // Exact equality only — substring matching causes Region I to also light up Region II, III, IV, IX
-  return normPin === normSelected;
-}
-
-function isMatchingProvince(pinProvinceName?: string, selectedProvinceName?: string): boolean {
-  if (!selectedProvinceName) return true;
-  if (!pinProvinceName) return false;
-
-  const cleanPin = stripDeoSuffix(pinProvinceName).toLowerCase().trim();
-  const cleanSelected = stripDeoSuffix(selectedProvinceName).toLowerCase().trim();
-
-  // Exact equality first — avoids e.g. "Tarlac" matching "Nueva Ecija"
-  return cleanPin === cleanSelected;
-}
-
 interface GeoFeature {
   type: 'Feature';
   id?: number | string;
@@ -132,6 +77,8 @@ interface ProjectItem {
   gpsLng?: number;
   flagOverdue?: boolean;
   flagOverpaid?: boolean;
+  flagStalled?: boolean;
+  flagNeverStarted?: boolean;
   avgRating?: number;
   province?: {
     name?: string;
@@ -139,6 +86,15 @@ interface ProjectItem {
       name?: string;
     };
   };
+}
+
+interface ChoroplethStat {
+  psgcCode: string;
+  name: string;
+  projectCount: number;
+  totalBudgetPHP: number;
+  flaggedCount: number;
+  avgProgress: number;
 }
 
 function MapContent() {
@@ -153,15 +109,23 @@ function MapContent() {
   const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'streets'>('satellite');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
-  const [regionGeoJson, setRegionGeoJson] = useState<GeoJSONData | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(5.8);
 
-  // Drill-down State
+  // GeoJSON & Choropleth Data
+  const [regionGeoJson, setRegionGeoJson] = useState<GeoJSONData | null>(null);
+  const [provinceGeoJson, setProvinceGeoJson] = useState<GeoJSONData | null>(null);
+  const [choroplethData, setChoroplethData] = useState<ChoroplethStat[]>([]);
+
+  // Hierarchical Drill-down State: Philippines > Region > Province > Municipality > Barangay
   const [hierarchy, setHierarchy] = useState<LocationHierarchy | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [selectedProvince, setSelectedProvince] = useState<string>('');
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
+  const [selectedBarangay, setSelectedBarangay] = useState<string>('');
   const [filterAnomaly, setFilterAnomaly] = useState<string>('All');
+  const [barangayProjects, setBarangayProjects] = useState<ProjectItem[]>([]);
 
-  // User GPS Location for 15km Rating Eligibility
+  // User GPS Location
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
@@ -174,7 +138,7 @@ function MapContent() {
     }
   }, []);
 
-  // Load URL search parameters if available
+  // Load URL search parameters
   useEffect(() => {
     const timer = setTimeout(() => {
       const r = searchParams.get('region');
@@ -192,7 +156,7 @@ function MapContent() {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  // Fly map camera directly to project coordinates when selectedProjectId changes
+  // Fly map camera to selected project
   useEffect(() => {
     if (!selectedProjectId || !isMapLoaded || !mapRef.current) return;
 
@@ -212,7 +176,7 @@ function MapContent() {
       .catch(console.error);
   }, [selectedProjectId, isMapLoaded]);
 
-  // Load Hierarchy
+  // Load Hierarchy & Choropleth Data
   useEffect(() => {
     fetch('/api/locations/hierarchy')
       .then((res) => (res.ok ? res.json() : null))
@@ -220,14 +184,28 @@ function MapContent() {
         if (d) setHierarchy(d);
       })
       .catch(console.error);
+
+    fetch('/api/map/choropleth')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (d?.data) setChoroplethData(d.data);
+      })
+      .catch(console.error);
   }, []);
 
-  // Load PH Region GeoJSON
+  // Load GeoJSON Boundaries
   useEffect(() => {
-    fetch('/data/ph-regions.json')
+    fetch('/geo/regions.json')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) setRegionGeoJson(data);
+      })
+      .catch(console.error);
+
+    fetch('/geo/provinces.json')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setProvinceGeoJson(data);
       })
       .catch(console.error);
   }, []);
@@ -259,6 +237,10 @@ function MapContent() {
       setIsMapLoaded(true);
     });
 
+    map.on('zoom', () => {
+      setCurrentZoom(map.getZoom());
+    });
+
     mapRef.current = map;
 
     return () => {
@@ -268,501 +250,420 @@ function MapContent() {
     };
   }, [basemap]);
 
-  // Render Region Outline Layer ONLY (Only selected region gets an outline; unselected get 0 outline)
+  // Render Province Polygon Choropleth (Zoom 5-7)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !isMapLoaded || !regionGeoJson) return;
+    if (!map || !isMapLoaded || !provinceGeoJson) return;
 
-    if (map.getLayer('ph-region-outline-layer')) map.removeLayer('ph-region-outline-layer');
-    if (map.getLayer('ph-region-fill-layer')) map.removeLayer('ph-region-fill-layer');
-    if (map.getSource('ph-region-source')) map.removeSource('ph-region-source');
+    if (map.getLayer('province-choropleth-layer')) map.removeLayer('province-choropleth-layer');
+    if (map.getLayer('province-borders-layer')) map.removeLayer('province-borders-layer');
+    if (map.getSource('province-source')) map.removeSource('province-source');
 
-    const enrichedFeatures = regionGeoJson.features.map((feature: GeoFeature) => {
-      const rawName = (feature.properties?.REGION || feature.properties?.name || '') as string;
-      const dbName = REGION_NAME_MAP[rawName] || rawName;
-      const isSelected = selectedRegion && isMatchingRegion(dbName, selectedRegion);
+    // Create a map from province name/PSGC to project counts
+    const countMap = new Map<string, number>();
+    choroplethData.forEach((stat) => {
+      countMap.set(stat.name.toLowerCase().trim(), stat.projectCount);
+      countMap.set(stat.psgcCode, stat.projectCount);
+    });
+
+    const enrichedFeatures = provinceGeoJson.features.map((feature: any) => {
+      const provName = (feature.properties?.province_name || feature.properties?.name || '') as string;
+      const count = countMap.get(provName.toLowerCase().trim()) || 0;
       return {
         ...feature,
         properties: {
           ...feature.properties,
-          dbName,
-          isSelected,
+          projectCount: count,
         },
       };
     });
 
-    map.addSource('ph-region-source', {
+    map.addSource('province-source', {
       type: 'geojson',
       data: {
-        ...regionGeoJson,
+        type: 'FeatureCollection',
         features: enrichedFeatures,
-      } as unknown as GeoJSON.FeatureCollection,
+      },
     });
 
-    // Translucent Region Fill Layer (ONLY selected region is highlighted)
+    // Level-of-detail choropleth fill layer: visible at zoom 5 to 8, fades out above zoom 8
     map.addLayer({
-      id: 'ph-region-fill-layer',
+      id: 'province-choropleth-layer',
       type: 'fill',
-      source: 'ph-region-source',
+      source: 'province-source',
+      maxzoom: 8.5,
       paint: {
         'fill-color': [
-          'case',
-          ['boolean', ['get', 'isSelected'], false],
-          '#0284c7',
-          selectedRegion ? '#000000' : 'transparent',
+          'interpolate',
+          ['linear'],
+          ['get', 'projectCount'],
+          0, '#fef08a',
+          50, '#f97316',
+          200, '#ef4444',
+          500, '#991b1b',
         ],
         'fill-opacity': [
-          'case',
-          ['boolean', ['get', 'isSelected'], false],
-          0.15,
-          selectedRegion ? 0.45 : 0,
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          5.0, 0.6,
+          7.5, 0.4,
+          8.5, 0.0,
         ],
       },
     });
 
-    // Glowing Neon Region Outline Layer (ONLY the selected region gets an outline!)
     map.addLayer({
-      id: 'ph-region-outline-layer',
+      id: 'province-borders-layer',
       type: 'line',
-      source: 'ph-region-source',
+      source: 'province-source',
       paint: {
-        'line-color': '#38bdf8',
-        'line-width': selectedRegion
-          ? [
-              'case',
-              ['boolean', ['get', 'isSelected'], false],
-              3.5,
-              0,
-            ]
-          : 1,
-        'line-opacity': selectedRegion
-          ? [
-              'case',
-              ['boolean', ['get', 'isSelected'], false],
-              1.0,
-              0.0,
-            ]
-          : 0.5,
+        'line-color': '#ffffff',
+        'line-width': 0.8,
+        'line-opacity': 0.5,
       },
     });
-  }, [isMapLoaded, regionGeoJson, selectedRegion]);
+  }, [isMapLoaded, provinceGeoJson, choroplethData]);
 
-  // Load & Render Dynamic Project Pins (Highlighting searched target pin with glowing cyan ring)
+  // Load & Render Dynamic Project Pins (Level of Detail & Micro-Clustering)
   const renderMapLayers = useCallback(async () => {
     const map = mapRef.current;
     if (!map || !isMapLoaded) return;
 
     try {
-      const params = new URLSearchParams();
-      params.set('limit', '500');
-      if (selectedRegion) params.set('region', selectedRegion);
-      if (selectedProvince) params.set('province', selectedProvince);
-      if (filterAnomaly !== 'All') params.set('flag', filterAnomaly);
+      const bounds = map.getBounds();
+      let url = `/api/projects?limit=500`;
 
-      const res = await fetch(`/api/projects?${params.toString()}`);
+      // If zoomed in, use bounding-box cluster query
+      if (bounds && map.getZoom() >= 8) {
+        url = `/api/map/clusters?sw_lat=${bounds.getSouth()}&sw_lng=${bounds.getWest()}&ne_lat=${bounds.getNorth()}&ne_lng=${bounds.getEast()}&zoom=${map.getZoom()}&limit=600`;
+      }
+
+      if (selectedRegion) url += `&region=${encodeURIComponent(selectedRegion)}`;
+      if (selectedProvince) url += `&province=${encodeURIComponent(selectedProvince)}`;
+      if (filterAnomaly !== 'All') url += `&flag=${encodeURIComponent(filterAnomaly)}`;
+
+      const res = await fetch(url);
       if (!res.ok) return;
 
       const data = await res.json();
-      const allProjects: ProjectItem[] = data.projects || [];
+      let visibleProjects: ProjectItem[] = [];
 
-      // Filter projects strictly based on user selection
-      const visibleProjects = allProjects.filter((p: ProjectItem) => {
-        if (!p.gpsLat || !p.gpsLng) return false;
-        const pinRegion = p.province?.region?.name || '';
-        const pinProvince = p.province?.name || '';
-
-        if (selectedProvince) {
-          return isMatchingProvince(pinProvince, selectedProvince);
-        }
-        if (selectedRegion) {
-          return isMatchingRegion(pinRegion, selectedRegion);
-        }
-        return true;
-      });
-
-      // Ensure searched target project is ALWAYS included in visibleProjects even if filtered out
-      if (selectedProjectId && !visibleProjects.some((p: ProjectItem) => p.id === selectedProjectId)) {
-        try {
-          const targetRes = await fetch(`/api/projects/${selectedProjectId}`);
-          if (targetRes.ok) {
-            const targetData = await targetRes.json();
-            const targetProj = targetData.project || targetData;
-            if (targetProj?.gpsLat && targetProj?.gpsLng) {
-              visibleProjects.unshift(targetProj);
-            }
-          }
-        } catch (e) {
-          console.error('Error fetching searched target project:', e);
-        }
+      if (data.features) {
+        // GeoJSON clusters response
+        visibleProjects = data.features.map((f: any) => ({
+          id: f.properties.id,
+          name: f.properties.name,
+          budgetPHP: f.properties.budgetPHP,
+          progress: f.properties.progress,
+          status: f.properties.status,
+          category: f.properties.category,
+          gpsLat: f.geometry.coordinates[1],
+          gpsLng: f.geometry.coordinates[0],
+          flagOverdue: f.properties.flagOverdue,
+          flagOverpaid: f.properties.flagOverpaid,
+          flagStalled: f.properties.flagStalled,
+          flagNeverStarted: f.properties.flagNeverStarted,
+          avgRating: f.properties.avgRating,
+        }));
+      } else {
+        visibleProjects = data.projects || [];
       }
 
-      // Re-verify map validity after async data fetching
-      const activeMap = mapRef.current;
-      if (!activeMap || typeof activeMap.getCanvasContainer !== 'function' || !activeMap.getCanvasContainer()) {
-        return;
+      // Update barangay projects list if barangay selected
+      if (selectedBarangay) {
+        setBarangayProjects(visibleProjects.slice(0, 15));
       }
 
-      // Clear existing markers & popups cleanly
+      // Clear existing markers & popups
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
       popupsRef.current.forEach((p) => p.remove());
       popupsRef.current = [];
 
-      const visibleCoords: [number, number][] = [];
+      const zoom = map.getZoom();
 
-      // Render matching project pins with prominent glowing highlight for searched target project
-      for (const p of visibleProjects) {
-        if (!p.gpsLng || !p.gpsLat) continue;
-        visibleCoords.push([p.gpsLng, p.gpsLat]);
+      // Render pins if zoom >= 8 or drill-down active
+      if (zoom >= 7.5 || selectedRegion || selectedProvince) {
+        for (const p of visibleProjects) {
+          if (!p.gpsLng || !p.gpsLat) continue;
 
-        const isTarget = selectedProjectId && p.id === selectedProjectId;
+          const isTarget = selectedProjectId && p.id === selectedProjectId;
 
-        const statusColor =
-          p.flagOverdue || p.flagOverpaid
-            ? '#ef4444'
-            : '#10b981';
-
-        // Marker DOM Element
-        const el = document.createElement('div');
-        if (isTarget) {
-          // Highlighted Target Pin: Bright cyan, larger size, glowing double shadow, pulse ring
-          el.style.width = '22px';
-          el.style.height = '22px';
-          el.style.borderRadius = '50%';
-          el.style.backgroundColor = '#00f0ff';
-          el.style.border = '3px solid #ffffff';
-          el.style.boxShadow = '0 0 25px #00f0ff, 0 0 45px #00f0ff, 0 4px 12px rgba(0,0,0,0.8)';
-          el.style.cursor = 'pointer';
-          el.style.zIndex = '50';
-        } else {
-          // Standard Pin: 14x14 fixed dot
-          el.style.width = '14px';
-          el.style.height = '14px';
-          el.style.borderRadius = '50%';
-          el.style.backgroundColor = statusColor;
-          el.style.border = '2px solid #ffffff';
-          el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
-          el.style.cursor = 'pointer';
-          el.style.transition = 'box-shadow 0.15s ease-in-out';
-        }
-
-        const geoCheck =
-          userLocation && p.gpsLat && p.gpsLng
-            ? isWithinReviewRadius(userLocation.lat, userLocation.lng, p.gpsLat, p.gpsLng, MAX_REVIEW_RADIUS_KM)
-            : null;
-
-        const avgRatingVal = p.avgRating ?? 0;
-
-        // Non-blocking Mapbox Popup
-        const popup = new mapboxgl.Popup({
-          offset: [0, isTarget ? -16 : -10],
-          closeButton: false,
-          closeOnClick: false,
-          anchor: 'bottom',
-          className: 'pointer-events-none z-50',
-        }).setHTML(`
-          <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border: ${isTarget ? '2px solid #00f0ff' : '1px solid rgba(255,255,255,0.15)'}; border-radius: 12px; padding: 10px; box-shadow: ${isTarget ? '0 0 30px rgba(0, 240, 255, 0.5)' : '0 10px 25px rgba(0,0,0,0.5)'}; color: #ffffff; font-family: system-ui, sans-serif; min-width: 230px; max-width: 270px; pointer-events: none;">
-            ${isTarget ? '<div style="font-size: 9px; font-weight: 900; color: #00f0ff; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Target Searched Project</div>' : ''}
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-              <span style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</span>
-              <span style="font-size: 9px; font-weight: 700; color: ${p.status === 'Completed' ? '#34d399' : '#fbbf24'}; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 9999px;">${p.status}</span>
-            </div>
-            <div style="font-size: 11px; font-weight: 700; color: #ffffff; line-height: 1.35; margin-top: 4px;">${p.name.slice(0, 75)}...</div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
-              <span style="color: #94a3b8;">Budget:</span>
-              <span style="font-weight: 800; color: #38bdf8;">${formatCurrency(p.budgetPHP)}</span>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-top: 2px;">
-              <span style="color: #94a3b8;">Progress:</span>
-              <span style="font-weight: 700; color: #60a5fa;">${p.progress.toFixed(1)}%</span>
-            </div>
-            ${
-              geoCheck
-                ? `
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; margin-top: 4px; padding: 2px 6px; border-radius: 6px; background: ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; border: 1px solid ${geoCheck.isWithin ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}; color: ${geoCheck.isWithin ? '#6ee7b7' : '#fcd34d'};">
-              <span>${geoCheck.distanceKm} km away</span>
-              <span style="font-weight: 700;">${geoCheck.isWithin ? 'Eligible to Rate' : 'View Only (&gt;15km)'}</span>
-            </div>
-            `
-                : ''
-            }
-            <div style="display: flex; align-items: justify; font-size: 10px; margin-top: 6px; color: #fbbf24; font-weight: 700;">
-              <span>${avgRatingVal > 0 ? `Rating: ${avgRatingVal.toFixed(1)} / 5.0` : 'No reviews'}</span>
-              <span style="color: #38bdf8; font-weight: 800;">Inspect &rarr;</span>
-            </div>
-          </div>
-        `);
-
-        // If this is the searched project, automatically display its tooltip popup on map
-        if (isTarget && activeMap?.getCanvasContainer()) {
-          try {
-            popup.addTo(activeMap);
-          } catch {
-            // Ignore map unmount race condition
+          // Color by worst anomaly flag (Red = Overpaid/Stalled, Amber = Overdue/NeverStarted, Green = Normal)
+          let statusColor = '#10b981';
+          if (p.flagOverpaid || p.flagStalled) {
+            statusColor = '#ef4444';
+          } else if (p.flagOverdue || p.flagNeverStarted) {
+            statusColor = '#f59e0b';
           }
-        }
 
-        el.addEventListener('mouseenter', () => {
-          if (!isTarget && mapRef.current?.getCanvasContainer()) {
-            try {
-              el.style.boxShadow = `0 0 20px ${statusColor}, 0 0 28px ${statusColor}`;
-              popup.addTo(mapRef.current);
-            } catch {
-              // Ignore
-            }
+          const el = document.createElement('div');
+          if (isTarget) {
+            el.style.width = '22px';
+            el.style.height = '22px';
+            el.style.borderRadius = '50%';
+            el.style.backgroundColor = '#00f0ff';
+            el.style.border = '3px solid #ffffff';
+            el.style.boxShadow = '0 0 25px #00f0ff, 0 0 45px #00f0ff, 0 4px 12px rgba(0,0,0,0.8)';
+            el.style.cursor = 'pointer';
+            el.style.zIndex = '50';
+          } else {
+            el.style.width = zoom >= 14 ? '16px' : '12px';
+            el.style.height = zoom >= 14 ? '16px' : '12px';
+            el.style.borderRadius = '50%';
+            el.style.backgroundColor = statusColor;
+            el.style.border = '2px solid #ffffff';
+            el.style.boxShadow = `0 0 10px ${statusColor}`;
+            el.style.cursor = 'pointer';
           }
-        });
 
-        el.addEventListener('mouseleave', () => {
-          if (!isTarget) {
-            try {
-              el.style.boxShadow = `0 0 12px ${statusColor}, 0 2px 8px rgba(0,0,0,0.8)`;
-              popup.remove();
-            } catch {
-              // Ignore
-            }
+          // Zoom 14+: On-map project label
+          if (zoom >= 14 && !isTarget) {
+            const labelSpan = document.createElement('span');
+            labelSpan.innerText = p.name.slice(0, 24) + '...';
+            labelSpan.style.position = 'absolute';
+            labelSpan.style.left = '20px';
+            labelSpan.style.top = '-2px';
+            labelSpan.style.backgroundColor = 'rgba(15, 23, 42, 0.85)';
+            labelSpan.style.color = '#ffffff';
+            labelSpan.style.fontSize = '9px';
+            labelSpan.style.fontWeight = 'bold';
+            labelSpan.style.padding = '2px 6px';
+            labelSpan.style.borderRadius = '4px';
+            labelSpan.style.whiteSpace = 'nowrap';
+            labelSpan.style.pointerEvents = 'none';
+            el.appendChild(labelSpan);
           }
-        });
 
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          setSelectedProjectId(p.id);
-        });
+          const popup = new mapboxgl.Popup({
+            offset: [0, isTarget ? -16 : -10],
+            closeButton: false,
+            closeOnClick: false,
+            anchor: 'bottom',
+          }).setHTML(`
+            <div style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border-radius: 10px; padding: 8px; color: #ffffff; font-family: system-ui, sans-serif; min-width: 220px; font-size: 11px;">
+              <div style="font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</div>
+              <div style="font-weight: 700; margin-top: 2px;">${p.name.slice(0, 70)}...</div>
+              <div style="margin-top: 4px; display: flex; justify-content: space-between;">
+                <span style="color: #94a3b8;">Budget:</span>
+                <span style="color: #38bdf8; font-weight: bold;">${formatCurrency(p.budgetPHP)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: #94a3b8;">Progress:</span>
+                <span style="color: #60a5fa; font-weight: bold;">${p.progress.toFixed(1)}%</span>
+              </div>
+            </div>
+          `);
 
-        if (activeMap?.getCanvasContainer()) {
-          try {
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-              .setLngLat([p.gpsLng, p.gpsLat])
-              .addTo(activeMap);
+          el.addEventListener('mouseenter', () => {
+            if (mapRef.current) popup.addTo(mapRef.current);
+          });
+          el.addEventListener('mouseleave', () => {
+            popup.remove();
+          });
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setSelectedProjectId(p.id);
+          });
 
-            markersRef.current.push(marker);
-            popupsRef.current.push(popup);
-          } catch {
-            // Ignore map unmount race condition
-          }
-        }
-      }
+          const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([p.gpsLng, p.gpsLat])
+            .addTo(map);
 
-      // Smooth camera fit when province/city is selected without specific project selected
-      if (!selectedProjectId && selectedProvince && visibleCoords.length > 0) {
-        const bounds = new mapboxgl.LngLatBounds();
-        visibleCoords.forEach((pt) => bounds.extend(pt));
-        if (!bounds.isEmpty()) {
-          map.fitBounds(bounds, { padding: 90, duration: 1300 });
+          markersRef.current.push(marker);
+          popupsRef.current.push(popup);
         }
       }
     } catch (err) {
-      console.error('Error rendering map layers:', err);
+      console.error('Error rendering map pins:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, filterAnomaly, selectedProjectId, userLocation]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, selectedBarangay, filterAnomaly, selectedProjectId]);
 
   useEffect(() => {
     renderMapLayers();
-  }, [renderMapLayers]);
-
-  // Handle Region Selection
-  const handleSelectRegion = (regionName: string) => {
-    setSelectedRegion(regionName);
-    setSelectedProvince('');
-
-    if (!regionName) {
-      mapRef.current?.flyTo({
-        center: [122.0, 12.8],
-        zoom: 5.8,
-        duration: 1500,
-      });
-      return;
-    }
-
-    const regionCenters: Record<string, [number, number]> = {
-      'National Capital Region': [121.0, 14.6],
-      'Region I': [120.4, 16.5],
-      'Region II': [121.8, 17.0],
-      'Region III': [120.6, 15.2],
-      'Region IV-A': [121.2, 14.1],
-      'Region IV-B': [119.0, 10.0],
-      'Region V': [123.4, 13.5],
-      'Region VI': [122.5, 11.0],
-      'Region VII': [123.9, 10.3],
-      'Region VIII': [125.0, 11.2],
-      'Region IX': [122.5, 8.0],
-      'Region X': [124.6, 8.5],
-      'Region XI': [125.6, 7.2],
-      'Region XII': [124.8, 6.5],
-      'Region XIII': [125.5, 9.0],
-      'BARMM': [124.3, 7.2],
-      'Cordillera Administrative Region': [121.0, 17.3],
-      'Negros Island Region': [123.0, 10.0],
-    };
-
-    const target = regionCenters[regionName] || [122.0, 12.8];
-    mapRef.current?.flyTo({
-      center: target,
-      zoom: 8.2,
-      duration: 1500,
-    });
-  };
-
-  // Handle Province Drill-Down selection (e.g. Pampanga, Ilocos Norte)
-  const handleSelectProvince = (provinceName: string) => {
-    setSelectedProvince(provinceName);
-    if (!provinceName) return;
-
-    const targetCenter = PROVINCE_CENTERS[provinceName];
-    if (targetCenter && mapRef.current) {
-      mapRef.current.flyTo({
-        center: targetCenter,
-        zoom: 10.4,
-        duration: 1300,
-      });
-    }
-  };
-
-  const activeProvinces = useMemo(() => {
-    if (!hierarchy || !selectedRegion) return [];
-    const reg = hierarchy.regions.find((r) => r.name === selectedRegion);
-    return reg?.provinces || [];
-  }, [hierarchy, selectedRegion]);
+  }, [renderMapLayers, currentZoom]);
 
   return (
-    <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-950 select-none">
-      {/* Top Floating Google Maps-Style Control Hub */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
-        {/* Left: Mode Switcher & Drill-Down Breadcrumbs */}
-        <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-          {/* Mode Switcher */}
-          <div className="flex items-center rounded-xl bg-black/80 p-1 backdrop-blur-md border border-white/15 shadow-xl text-xs font-bold text-white">
-            <button
-              onClick={() => {
-                setMapMode('free_roam');
-                setSelectedRegion('');
+    <div className="relative h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-950">
+      {/* Mapbox Container */}
+      <div ref={mapContainerRef} className="h-full w-full" />
+
+      {/* Floating Level-of-Detail & Drill-Down Control Panel */}
+      <div className="absolute top-4 left-4 z-20 w-80 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-200 shadow-xl space-y-3 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="font-black text-gray-900 uppercase tracking-wider text-[11px]">
+            🇵🇭 Geospatial Inspector
+          </span>
+          <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+            Zoom {currentZoom.toFixed(1)}
+          </span>
+        </div>
+
+        {/* Hierarchical Breadcrumbs */}
+        <div className="text-[10px] text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 flex flex-wrap items-center gap-1 font-medium">
+          <button
+            onClick={() => {
+              setSelectedRegion('');
+              setSelectedProvince('');
+              setSelectedMunicipality('');
+              setSelectedBarangay('');
+            }}
+            className="text-blue-600 font-bold hover:underline"
+          >
+            Philippines
+          </button>
+          {selectedRegion && (
+            <>
+              <span>&gt;</span>
+              <span className="font-bold text-gray-800">{selectedRegion}</span>
+            </>
+          )}
+          {selectedProvince && (
+            <>
+              <span>&gt;</span>
+              <span className="font-bold text-gray-800">{selectedProvince}</span>
+            </>
+          )}
+          {selectedBarangay && (
+            <>
+              <span>&gt;</span>
+              <span className="font-bold text-emerald-700">{selectedBarangay}</span>
+            </>
+          )}
+        </div>
+
+        {/* Drill-down Selectors */}
+        <div className="space-y-2">
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Region</label>
+            <select
+              value={selectedRegion}
+              onChange={(e) => {
+                setSelectedRegion(e.target.value);
                 setSelectedProvince('');
+                setSelectedMunicipality('');
+                setSelectedBarangay('');
               }}
-              className={`rounded-lg px-3 py-1.5 font-bold transition ${
-                mapMode === 'free_roam' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
-              }`}
+              className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
             >
-              Free Roam
-            </button>
-            <button
-              onClick={() => setMapMode('drill_down')}
-              className={`rounded-lg px-3 py-1.5 font-bold transition ${
-                mapMode === 'drill_down' ? 'bg-blue-600 text-white shadow' : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              Guided Drill-Down
-            </button>
+              <option value="">All Regions (Nationwide)</option>
+              {hierarchy?.regions.map((r) => (
+                <option key={r.id} value={r.name}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Guided Mode Breadcrumbs */}
-          {mapMode === 'drill_down' && (
-            <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-black/80 px-3 py-1.5 backdrop-blur-md border border-white/15 shadow-xl text-xs text-white">
-              <span className="text-blue-400 font-bold">Philippines</span>
-              <span>&gt;</span>
-
-              {/* Region Dropdown */}
+          {selectedRegion && (
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Province</label>
               <select
-                value={selectedRegion}
-                onChange={(e) => handleSelectRegion(e.target.value)}
-                className="rounded-md bg-white/10 px-2 py-1 text-xs text-white font-semibold border border-white/10 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={selectedProvince}
+                onChange={(e) => {
+                  setSelectedProvince(e.target.value);
+                  setSelectedMunicipality('');
+                  setSelectedBarangay('');
+                }}
+                className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
               >
-                <option value="" className="bg-gray-900 text-white">All 18 Regions</option>
-                {hierarchy?.regions.map((r) => (
-                  <option key={r.id} value={r.name} className="bg-gray-900 text-white">
-                    {r.name}
-                  </option>
-                ))}
+                <option value="">All Provinces in Region</option>
+                {hierarchy?.regions
+                  .find((r) => r.name === selectedRegion)
+                  ?.provinces.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
               </select>
-
-              {selectedRegion && (
-                <>
-                  <span>&gt;</span>
-                  {/* Province/City Dropdown */}
-                  <select
-                    value={selectedProvince}
-                    onChange={(e) => handleSelectProvince(e.target.value)}
-                    className="rounded-md bg-white/10 px-2 py-1 text-xs text-white font-semibold border border-white/10 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="" className="bg-gray-900 text-white">All Cities/Provinces in {selectedRegion}</option>
-                    {activeProvinces.map((p) => (
-                      <option key={p.id} value={p.name} className="bg-gray-900 text-white">
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
             </div>
           )}
 
-          {/* Active Highlight Banner */}
-          {(selectedRegion || selectedProvince) && (
-            <div className="flex items-center gap-2 rounded-xl bg-blue-600/90 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md border border-blue-400/30">
-              <span className="h-2 w-2 rounded-full bg-cyan-300 animate-ping" />
-              <span>
-                Focused: {selectedProvince ? `${selectedProvince}, ${selectedRegion}` : selectedRegion}
-              </span>
-              <button
-                onClick={() => {
-                  setSelectedRegion('');
-                  setSelectedProvince('');
-                }}
-                className="ml-1 rounded-full bg-white/20 px-1.5 py-0.2 hover:bg-white/40"
-              >
-                ✕
-              </button>
+          {selectedProvince && (
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">Barangay Ground Search</label>
+              <input
+                type="text"
+                placeholder="Enter Barangay name (e.g. San Jose)..."
+                value={selectedBarangay}
+                onChange={(e) => setSelectedBarangay(e.target.value)}
+                className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-800 focus:border-blue-500 focus:outline-none"
+              />
             </div>
           )}
         </div>
 
-        {/* Right: Basemap Switcher & Anomaly Filter */}
-        <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-          {/* Quick Anomaly Filter */}
+        {/* Anomaly Filter */}
+        <div>
+          <label className="text-[10px] font-bold text-gray-500 uppercase">Filter Risk Flags</label>
           <select
             value={filterAnomaly}
             onChange={(e) => setFilterAnomaly(e.target.value)}
-            className="rounded-xl bg-black/80 px-3 py-1.5 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white focus:outline-none"
+            className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
           >
             <option value="All">All Projects</option>
-            <option value="overdue">Overdue Only</option>
-            <option value="overpaid">Overpaid Only</option>
+            <option value="overpaid">🚨 Overpaid (&lt;30% progress, &gt;80% paid)</option>
+            <option value="stalled">⚠️ Stalled (No activity 180+ days)</option>
+            <option value="overdue">🟡 Overdue Contracts</option>
             <option value="neverStarted">Never Started</option>
           </select>
+        </div>
 
-          {/* Basemap Switcher */}
-          <div className="flex items-center rounded-xl bg-black/80 p-1 backdrop-blur-md border border-white/15 shadow-xl text-xs font-semibold text-white">
-            <button
-              onClick={() => setBasemap('satellite')}
-              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
-                basemap === 'satellite' ? 'bg-blue-600 text-white' : 'text-gray-300'
-              }`}
-            >
-              Satellite
-            </button>
-            <button
-              onClick={() => setBasemap('dark')}
-              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
-                basemap === 'dark' ? 'bg-blue-600 text-white' : 'text-gray-300'
-              }`}
-            >
-              Dark
-            </button>
-            <button
-              onClick={() => setBasemap('streets')}
-              className={`rounded-lg px-2.5 py-1 font-semibold transition ${
-                basemap === 'streets' ? 'bg-blue-600 text-white' : 'text-gray-300'
-              }`}
-            >
-              Terrain
-            </button>
+        {/* Basemap Switcher */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+          <span className="text-[10px] font-bold text-gray-500">Basemap</span>
+          <div className="flex rounded-lg bg-gray-100 p-0.5 text-[10px] font-bold">
+            {(['satellite', 'streets', 'dark'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setBasemap(mode)}
+                className={`px-2 py-0.5 rounded capitalize transition ${
+                  basemap === mode ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Mapbox Canvas */}
-      <div ref={mapContainerRef} className="h-full w-full" />
+      {/* Barangay Project List Sidebar Drawer (when Barangay active) */}
+      {selectedBarangay && barangayProjects.length > 0 && (
+        <div className="absolute top-4 right-4 z-20 w-80 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-200 shadow-xl space-y-2.5 max-h-[calc(100vh-120px)] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <span className="font-black text-gray-900 text-xs">
+              📍 Projects in {selectedBarangay} ({barangayProjects.length})
+            </span>
+            <button
+              onClick={() => setSelectedBarangay('')}
+              className="text-gray-400 hover:text-gray-700 text-xs font-bold"
+            >
+              ✕
+            </button>
+          </div>
 
-      {/* Slide-out Google Maps-style Inspection Drawer */}
+          <div className="space-y-1.5">
+            {barangayProjects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProjectId(p.id)}
+                className="w-full text-left p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-blue-50/60 hover:border-blue-200 transition text-xs space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-gray-500">{p.id}</span>
+                  <span className="text-[10px] font-bold text-blue-600">{p.progress.toFixed(0)}%</span>
+                </div>
+                <p className="font-bold text-gray-900 line-clamp-2 text-[11px]">{p.name}</p>
+                <p className="text-[10px] font-semibold text-emerald-600">{formatCurrency(p.budgetPHP)}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Project Inspection Drawer */}
       <ProjectInspectionDrawer
         projectId={selectedProjectId}
         onClose={() => setSelectedProjectId(null)}
@@ -771,9 +672,9 @@ function MapContent() {
   );
 }
 
-export default function FullscreenMapPage() {
+export default function MapPage() {
   return (
-    <Suspense fallback={<div className="h-screen w-full bg-slate-950 flex items-center justify-center text-white">Loading MapaTunAI Map Engine...</div>}>
+    <Suspense fallback={<div className="h-screen w-screen bg-slate-950" />}>
       <MapContent />
     </Suspense>
   );

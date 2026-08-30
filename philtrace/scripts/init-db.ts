@@ -232,35 +232,6 @@ async function main() {
   }
 
   console.log(`✓ Seeded ${regionsCount} official Regions and ${provincesCount} Provinces.`);
-
-  console.log('🔒 Initializing official Agency Accounts...');
-  const agencies = [
-    {
-      email: 'dpwh-admin@philtrace.ph',
-      password: 'dpwh-demo-2026',
-      agencyName: 'Department of Public Works and Highways',
-    },
-    {
-      email: 'neda-admin@philtrace.ph',
-      password: 'neda-demo-2026',
-      agencyName: 'National Economic and Development Authority',
-    },
-  ];
-
-  for (const a of agencies) {
-    const passwordHash = await bcrypt.hash(a.password, 12);
-    await prisma.agencyAccount.upsert({
-      where: { email: a.email },
-      update: { passwordHash, agencyName: a.agencyName },
-      create: {
-        email: a.email,
-        passwordHash,
-        agencyName: a.agencyName,
-      },
-    });
-  }
-
-  console.log('✓ Seeded authorized DPWH & NEDA Agency accounts.');
   console.log('🚫 Zero fake data policy strictly maintained: Projects and Comments tables are clean.');
 }
 

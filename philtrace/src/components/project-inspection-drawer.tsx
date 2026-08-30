@@ -80,7 +80,10 @@ export default function ProjectInspectionDrawer({
     }
   }, []);
 
-  // Fetch project details & reviews
+  const [boqData, setBoqData] = useState<any | null>(null);
+  const [connections, setConnections] = useState<any[]>([]);
+
+  // Fetch project details, reviews, BOQ, and contractor connections
   const loadProject = async (id: string) => {
     setIsLoading(true);
     try {
@@ -90,7 +93,21 @@ export default function ProjectInspectionDrawer({
         const proj = data.project || data;
         setProject(proj);
         setAiSummary(proj?.aiSummary || null);
+
+        // Fetch contractor politician connections
+        if (proj?.contractorRaw) {
+          fetch(`/api/contractors/${encodeURIComponent(cleanContractorName(proj.contractorRaw))}/connections`)
+            .then((cRes) => (cRes.ok ? cRes.json() : null))
+            .then((cData) => setConnections(cData?.connections || []))
+            .catch(() => {});
+        }
       }
+
+      // Fetch BOQ
+      fetch(`/api/contracts/${id}/boq`)
+        .then((bRes) => (bRes.ok ? bRes.json() : null))
+        .then((bData) => setBoqData(bData))
+        .catch(() => {});
 
       const rRes = await fetch(`/api/reviews?projectId=${id}`);
       if (rRes.ok) {
@@ -310,6 +327,37 @@ export default function ProjectInspectionDrawer({
                   </div>
                 </div>
 
+                {/* Dual-Line Payment vs Progress Timeline Chart (Phase 5 A) */}
+                {(() => {
+                  const disbursementPct = project.budgetPHP > 0 ? (project.amountPaid / project.budgetPHP) * 100 : 0;
+                  const progressPct = project.progress || 0;
+                  const isSignificantDiscrepancy = disbursementPct - progressPct >= 30;
+
+                  return (
+                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-gray-700">Payment vs. Progress Tracking</span>
+                        <div className="flex items-center gap-2 text-[10px]">
+                          <span className="flex items-center gap-1 text-red-600 font-bold">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-600" /> Disbursed ({disbursementPct.toFixed(0)}%)
+                          </span>
+                          <span className="flex items-center gap-1 text-blue-600 font-bold">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> Progress ({progressPct.toFixed(0)}%)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Discrepancy Annotation Banner */}
+                      {isSignificantDiscrepancy && (
+                        <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-800 text-[11px] font-semibold flex items-center gap-1.5">
+                          <span>⚠️</span>
+                          <span>Disbursement significantly ahead of physical progress at this date (+{(disbursementPct - progressPct).toFixed(0)}% gap).</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Contractor Card */}
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                   <div>
@@ -352,6 +400,94 @@ export default function ProjectInspectionDrawer({
                   </p>
                 )}
               </div>
+
+              {/* Bill of Quantities (BOQ) Breakdown (Phase 3 & 5 B) */}
+              {boqData?.items && boqData.items.length > 0 && (
+                <div className="rounded-xl border border-gray-200 p-3.5 space-y-2.5 bg-white shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-900">Itemized Bill of Quantities (BOQ)</span>
+                    <span className="text-[10px] text-gray-500 font-mono">{boqData.items.length} items</span>
+                  </div>
+
+                  {boqData.flagMobilizationInflated && (
+                    <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold flex items-center gap-1.5">
+                      <span>⚠️</span>
+                      <span>Item B.9 Mobilization cost exceeds 5% of contract value.</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {boqData.items.map((item: any) => (
+                      <div
+                        key={item.id}
+                        className={`p-2 rounded-lg border text-[11px] ${
+                          item.flagUnitPriceAnomaly
+                            ? 'bg-red-50/70 border-red-200'
+                            : 'bg-gray-50 border-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-mono font-bold text-gray-700">{item.itemCode}</span>
+                            <p className="text-gray-600 line-clamp-1 text-[10px]">{item.description}</p>
+                          </div>
+                          <span className="font-bold text-gray-900 shrink-0">{formatCurrency(item.totalPhp)}</span>
+                        </div>
+
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-gray-500">
+                          <span>
+                            {item.quantity} {item.unit} &times; {formatCurrency(item.unitCostPhp)}
+                          </span>
+                          {item.variancePct !== null && (
+                            <span
+                              className={`font-semibold ${
+                                item.flagUnitPriceAnomaly ? 'text-red-700 font-bold' : 'text-gray-600'
+                              }`}
+                            >
+                              {item.variancePct > 0 ? `+${item.variancePct}%` : `${item.variancePct}%`} vs. benchmark
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Verified Contractor-Politician Mentions (Phase 6 B) */}
+              {connections.length > 0 && (
+                <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-900">
+                      📰 Verified Media &amp; Congressional Mentions
+                    </span>
+                    <span className="text-[10px] text-purple-600 font-medium">Public Records</span>
+                  </div>
+
+                  <p className="text-[10px] text-purple-700 leading-tight">
+                    Citations of public reports regarding this contractor. PhilTrace cites sources objectively.
+                  </p>
+
+                  <div className="space-y-1.5 pt-1">
+                    {connections.map((c) => (
+                      <div key={c.id} className="p-2 rounded-lg bg-white/90 border border-purple-100 flex items-center justify-between text-[11px]">
+                        <div>
+                          <span className="font-bold text-gray-900">{c.connectedName}</span>
+                          <p className="text-[10px] text-purple-700">{c.displayText}</p>
+                        </div>
+                        <a
+                          href={c.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-purple-700 hover:underline flex items-center gap-0.5"
+                        >
+                          View Article &rarr;
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Citizen Reviews & Whistleblower Feed */}
               <div className="space-y-3 pt-2">

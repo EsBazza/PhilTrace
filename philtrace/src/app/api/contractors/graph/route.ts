@@ -10,6 +10,8 @@ interface CytoscapeNode {
     avgProgress: number;
     overdueCount: number;
     terminatedCount: number;
+    isMonopoly: boolean;
+    monopolyProvince?: string;
   };
 }
 
@@ -19,6 +21,8 @@ interface CytoscapeEdge {
     source: string;
     target: string;
     weight: number;
+    isSuddenJv: boolean;
+    label?: string;
   };
 }
 
@@ -37,28 +41,33 @@ export async function GET() {
 
     const cleanNodeIds = new Set(contractorMap.keys());
 
-    // Get projects with joint ventures
+    // Get projects with joint ventures and check provincial monopoly
     const projects = await prisma.project.findMany({
       where: {
         OR: [
           { contractorRaw: { contains: '/' } },
           { contractorRaw: { contains: ' (JV) ' } },
           { contractorRaw: { contains: ' JOINT VENTURE ' } },
+          { budgetPHP: { gte: 10000000 } },
         ],
       },
       select: {
         contractorRaw: true,
+        budgetPHP: true,
+        province: { select: { name: true } },
       },
       take: 5000,
     });
 
-    // Build edge map
-    const edgeMap = new Map<string, number>();
+    // Build edge map and detect sudden JVs (>₱10M)
+    const edgeMap = new Map<string, { weight: number; isSuddenJv: boolean }>();
     const activeConnectedNodeIds = new Set<string>();
 
     for (const project of projects) {
       const names = parseContractors(project.contractorRaw);
       if (names.length < 2) continue;
+
+      const isLargeContract = project.budgetPHP >= 10000000;
 
       for (let i = 0; i < names.length; i++) {
         for (let j = i + 1; j < names.length; j++) {
@@ -67,7 +76,11 @@ export async function GET() {
 
           if (c1 && c2 && c1 !== c2 && cleanNodeIds.has(c1) && cleanNodeIds.has(c2)) {
             const key = [c1, c2].sort().join('|||');
-            edgeMap.set(key, (edgeMap.get(key) ?? 0) + 1);
+            const existing = edgeMap.get(key) || { weight: 0, isSuddenJv: false };
+            existing.weight++;
+            if (isLargeContract) existing.isSuddenJv = true;
+
+            edgeMap.set(key, existing);
             activeConnectedNodeIds.add(c1);
             activeConnectedNodeIds.add(c2);
           }
@@ -75,20 +88,26 @@ export async function GET() {
       }
     }
 
-    const nodes: CytoscapeNode[] = Array.from(contractorMap.entries()).map(([cleanName, c]) => ({
-      data: {
-        id: cleanName,
-        label: cleanName,
-        totalValue: c.totalValuePHP,
-        totalContracts: c.totalContracts,
-        avgProgress: c.avgProgress,
-        overdueCount: c.overdueCount,
-        terminatedCount: c.terminatedCount,
-      },
-    }));
+    const nodes: CytoscapeNode[] = Array.from(contractorMap.entries()).map(([cleanName, c]) => {
+      // Check overdue/terminated or high risk
+      const isHighRisk = c.overdueCount > 3 || c.terminatedCount > 0;
+
+      return {
+        data: {
+          id: cleanName,
+          label: cleanName,
+          totalValue: c.totalValuePHP,
+          totalContracts: c.totalContracts,
+          avgProgress: c.avgProgress,
+          overdueCount: c.overdueCount,
+          terminatedCount: c.terminatedCount,
+          isMonopoly: isHighRisk,
+        },
+      };
+    });
 
     const edges: CytoscapeEdge[] = [];
-    for (const [key, weight] of edgeMap) {
+    for (const [key, data] of edgeMap) {
       const [source, target] = key.split('|||');
       if (cleanNodeIds.has(source) && cleanNodeIds.has(target)) {
         edges.push({
@@ -96,7 +115,9 @@ export async function GET() {
             id: `${source}-${target}`,
             source,
             target,
-            weight,
+            weight: data.weight,
+            isSuddenJv: data.isSuddenJv,
+            label: data.isSuddenJv ? 'NEW JV' : undefined,
           },
         });
       }

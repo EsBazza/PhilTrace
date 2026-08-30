@@ -377,26 +377,7 @@ async function seedAgencyAccounts(): Promise<number> {
     },
   ];
 
-  let count = 0;
-  for (const agency of agencies) {
-    const passwordHash = await bcrypt.hash(agency.password, BCRYPT_SALT_ROUNDS);
-    await prisma.agencyAccount.upsert({
-      where: { email: agency.email },
-      update: {
-        passwordHash,
-        agencyName: agency.agencyName,
-      },
-      create: {
-        email: agency.email,
-        passwordHash,
-        agencyName: agency.agencyName,
-      },
-    });
-    console.log(`  ✓ Seeded Account: ${agency.email} (${agency.agencyName})`);
-    count++;
-  }
-
-  return count;
+  return 0;
 }
 
 /* ==========================================================================
@@ -682,8 +663,6 @@ async function seedProjectsAndContractors(targetCount: number): Promise<{ projec
           sourceOfFunds: raw.sourceOfFunds || null,
           programName: raw.programName || null,
           infraYear: raw.infraYear ? String(raw.infraYear) : null,
-          isLive: Boolean(raw.isLive),
-          livestreamUrl: raw.livestreamUrl || null,
           hasSatelliteImage: Boolean(raw.hasSatelliteImage),
           reportCount: Number(raw.reportCount) || 0,
           syncSource: source,
@@ -706,8 +685,6 @@ async function seedProjectsAndContractors(targetCount: number): Promise<{ projec
           sourceOfFunds: raw.sourceOfFunds || null,
           programName: raw.programName || null,
           infraYear: raw.infraYear ? String(raw.infraYear) : null,
-          isLive: Boolean(raw.isLive),
-          livestreamUrl: raw.livestreamUrl || null,
           hasSatelliteImage: Boolean(raw.hasSatelliteImage),
           reportCount: Number(raw.reportCount) || 0,
           syncSource: source,
@@ -813,7 +790,6 @@ async function seedWhistleblowerAndUpdates(): Promise<{ commentsCount: number; u
         { flagOverdue: true },
         { flagOverpaid: true },
         { flagNeverStarted: true },
-        { isLive: true },
       ],
     },
     orderBy: { budgetPHP: 'desc' },
@@ -869,10 +845,25 @@ async function seedWhistleblowerAndUpdates(): Promise<{ commentsCount: number; u
       corroborationCount: 7,
     },
     {
-      text: 'Contractor workers reported unpaid wages for 3 cut-offs. Work has ground to a complete halt.',
+      text: 'Walang tao sa construction site for over 6 months na. Nakatiwangwang lang ang mga bakal at kinakalawang na. Matinding traffic pa ang dulot sa mga commuters araw-araw dahil sa baradong kalsada.',
       severity: 'high',
-      rationale: 'Contractor financial distress and labor dispute causing indefinite project stoppage.',
+      rationale: 'Project appears abandoned despite on-going status',
       corroborationCount: 15,
+    },
+    {
+      text: 'Hindi pa nasisimulan ang proyekto kahit lampas na ang target start date. Puro damo pa rin ang site at walang equipment o materyales na makikita sa lokasyon.',
+      severity: 'Medium',
+      rationale: 'Never started project confirmed by ground observation',
+    },
+    {
+      text: 'May mga bitak agad ang bagong sementong kalsada kahit kaka-buhos lang noong nakaraang buwan. Mababa ang kalidad ng materyales na ginamit ng contractor.',
+      severity: 'High',
+      rationale: 'Premature structural cracking indicates substandard quality',
+    },
+    {
+      text: 'Delayed na ng halos isang taon. Ayon sa tarp, dapat tapos na noong 2024 pero hanggang ngayon ay nasa pundasyon pa lang.',
+      severity: 'High',
+      rationale: 'Severe project delay exceeding contract timeline',
     },
   ];
 
@@ -888,8 +879,7 @@ async function seedWhistleblowerAndUpdates(): Promise<{ commentsCount: number; u
         severity: report.severity,
         rationale: report.rationale,
         phoneVerified: true,
-        corroborationCount: report.corroborationCount,
-        photoUrl: null,
+        corroborationCount: Math.floor(Math.random() * 8) + 2,
       },
     });
 
@@ -904,44 +894,8 @@ async function seedWhistleblowerAndUpdates(): Promise<{ commentsCount: number; u
     commentsCount++;
   }
 
-  // Seed sample agency official updates
-  const sampleUpdates = [
-    {
-      agencyName: 'Department of Public Works and Highways',
-      percentDone: 65,
-      note: 'DPWH Regional Inspectorate conducted on-site audit. Formal Notice of Delay (NOD) issued to contractor with 15-day rectification order.',
-    },
-    {
-      agencyName: 'National Economic and Development Authority',
-      percentDone: 70,
-      note: 'NEDA Regional Project Monitoring Committee (RPMC) validated catch-up plan submitted by contractor for Q3 completion.',
-    },
-    {
-      agencyName: 'Department of Public Works and Highways',
-      percentDone: 45,
-      note: 'Right-of-Way (ROW) acquisition issue in Station 12+400 resolved in coordination with Provincial LGU. Construction resumed.',
-    },
-  ];
-
-  let updatesCount = 0;
-  for (let j = 0; j < Math.min(3, targetProjects.length); j++) {
-    const proj = targetProjects[j];
-    const upd = sampleUpdates[j];
-
-    await prisma.agencyUpdate.create({
-      data: {
-        projectId: proj.id,
-        agencyName: upd.agencyName,
-        percentDone: upd.percentDone,
-        note: upd.note,
-      },
-    });
-
-    updatesCount++;
-  }
-
-  console.log(`  ✓ Seeded ${commentsCount} verified whistleblower comments and ${updatesCount} agency updates.`);
-  return { commentsCount, updatesCount };
+  console.log(`  ✓ Seeded ${commentsCount} verified whistleblower comments.`);
+  return { commentsCount, updatesCount: 0 };
 }
 
 /* ==========================================================================
@@ -970,9 +924,9 @@ async function main() {
     const projectStats = await seedProjectsAndContractors(TARGET_PROJECTS_COUNT);
     console.log(`Seeded projects: ${projectStats.projectsCount} upserted, ${projectStats.contractorsCount} contractors.`);
 
-    // Step 4: Whistleblower Reports and Agency Updates
+    // Step 4: Whistleblower Reports
     const feedbackStats = await seedWhistleblowerAndUpdates();
-    console.log(`Seeded feedback: ${feedbackStats.commentsCount} comments, ${feedbackStats.updatesCount} updates.`);
+    console.log(`Seeded feedback: ${feedbackStats.commentsCount} comments.`);
 
     // Fetch final database metrics
     const [
@@ -981,7 +935,6 @@ async function main() {
       totalProjects,
       totalContractors,
       totalComments,
-      totalUpdates,
       flaggedStalled,
       flaggedOverdue,
       flaggedOverpaid,
@@ -992,7 +945,6 @@ async function main() {
       prisma.project.count(),
       prisma.contractor.count(),
       prisma.comment.count(),
-      prisma.agencyUpdate.count(),
       prisma.project.count({ where: { flagStalled: true } }),
       prisma.project.count({ where: { flagOverdue: true } }),
       prisma.project.count({ where: { flagOverpaid: true } }),
@@ -1012,7 +964,6 @@ async function main() {
     console.log(`  🏗️  Total Projects          : ${totalProjects}`);
     console.log(`  👷 Contractors Aggregated  : ${totalContractors}`);
     console.log(`  📢 Whistleblower Reports   : ${totalComments} (Phone-verified)`);
-    console.log(`  📝 Agency Field Updates    : ${totalUpdates}`);
     console.log('----------------------------------------------------------------');
     console.log('  🔍 Anomaly Flags Summary:');
     console.log(`     - Stalled Projects      : ${flaggedStalled}`);
