@@ -8,17 +8,29 @@ import { formatCurrency } from '@/lib/format';
 import { isWithinReviewRadius, MAX_REVIEW_RADIUS_KM } from '@/lib/geo';
 import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 
+interface CityItem {
+  id: string;
+  name: string;
+  file?: string;
+}
+
+interface ProvinceItem {
+  id: string;
+  name: string;
+  cities: CityItem[];
+}
+
+interface RegionItem {
+  id: string;
+  name: string;
+  provinces: ProvinceItem[];
+}
+
 interface LocationHierarchy {
-  regions: Array<{
-    id: string;
-    name: string;
-    psgcCode: string;
-    provinces: Array<{
-      id: string;
-      name: string;
-      psgcCode: string;
-    }>;
-  }>;
+  regions: RegionItem[];
+  totalRegions: number;
+  totalProvinces: number;
+  totalCities: number;
 }
 
 const PHILIPPINES_BOUNDS: [[number, number], [number, number]] = [
@@ -30,26 +42,6 @@ const BASEMAP_STYLES = {
   satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
   dark: 'mapbox://styles/mapbox/dark-v11',
   streets: 'mapbox://styles/mapbox/outdoors-v12',
-};
-
-const REGION_NAME_MAP: Record<string, string> = {
-  'Autonomous Region of Muslim Mindanao (ARMM)': 'BARMM',
-  'Bicol Region (Region V)': 'Region V',
-  'CALABARZON (Region IV-A)': 'Region IV-A',
-  'Cagayan Valley (Region II)': 'Region II',
-  'Caraga (Region XIII)': 'Region XIII',
-  'Central Luzon (Region III)': 'Region III',
-  'Central Visayas (Region VII)': 'Region VII',
-  'Cordillera Administrative Region (CAR)': 'Cordillera Administrative Region',
-  'Davao Region (Region XI)': 'Region XI',
-  'Eastern Visayas (Region VIII)': 'Region VIII',
-  'Ilocos Region (Region I)': 'Region I',
-  'MIMAROPA (Region IV-B)': 'Region IV-B',
-  'Metropolitan Manila': 'National Capital Region',
-  'Northern Mindanao (Region X)': 'Region X',
-  'SOCCSKSARGEN (Region XII)': 'Region XII',
-  'Western Visayas (Region VI)': 'Region VI',
-  'Zamboanga Peninsula (Region IX)': 'Region IX',
 };
 
 interface GeoFeature {
@@ -105,14 +97,12 @@ function MapContent() {
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
 
   // Modes & UI State
-  const [mapMode, setMapMode] = useState<'free_roam' | 'drill_down'>('drill_down');
   const [basemap, setBasemap] = useState<'satellite' | 'dark' | 'streets'>('satellite');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [currentZoom, setCurrentZoom] = useState<number>(5.8);
 
   // GeoJSON & Choropleth Data
-  const [regionGeoJson, setRegionGeoJson] = useState<GeoJSONData | null>(null);
   const [provinceGeoJson, setProvinceGeoJson] = useState<GeoJSONData | null>(null);
   const [choroplethData, setChoroplethData] = useState<ChoroplethStat[]>([]);
 
@@ -143,15 +133,12 @@ function MapContent() {
     const timer = setTimeout(() => {
       const r = searchParams.get('region');
       const p = searchParams.get('province');
+      const m = searchParams.get('city') || searchParams.get('municipality');
       const projId = searchParams.get('project') || searchParams.get('projectId');
-      if (r) {
-        setSelectedRegion(r);
-        setMapMode('drill_down');
-      }
+      if (r) setSelectedRegion(r);
       if (p) setSelectedProvince(p);
-      if (projId) {
-        setSelectedProjectId(projId);
-      }
+      if (m) setSelectedMunicipality(m);
+      if (projId) setSelectedProjectId(projId);
     }, 0);
     return () => clearTimeout(timer);
   }, [searchParams]);
@@ -176,7 +163,7 @@ function MapContent() {
       .catch(console.error);
   }, [selectedProjectId, isMapLoaded]);
 
-  // Load Hierarchy & Choropleth Data
+  // Load 1,644-City Hierarchy & Choropleth Data
   useEffect(() => {
     fetch('/api/locations/hierarchy')
       .then((res) => (res.ok ? res.json() : null))
@@ -193,15 +180,8 @@ function MapContent() {
       .catch(console.error);
   }, []);
 
-  // Load GeoJSON Boundaries
+  // Load Province GeoJSON Boundaries
   useEffect(() => {
-    fetch('/geo/regions.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setRegionGeoJson(data);
-      })
-      .catch(console.error);
-
     fetch('/geo/provinces.json')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -209,6 +189,20 @@ function MapContent() {
       })
       .catch(console.error);
   }, []);
+
+  // Available provinces in currently selected region
+  const currentProvinces = useMemo(() => {
+    if (!selectedRegion || !hierarchy?.regions) return [];
+    const reg = hierarchy.regions.find((r) => r.name.toLowerCase() === selectedRegion.toLowerCase());
+    return reg?.provinces || [];
+  }, [selectedRegion, hierarchy]);
+
+  // Available cities in currently selected province
+  const currentCities = useMemo(() => {
+    if (!selectedProvince || currentProvinces.length === 0) return [];
+    const prov = currentProvinces.find((p) => p.name.toLowerCase() === selectedProvince.toLowerCase());
+    return prov?.cities || [];
+  }, [selectedProvince, currentProvinces]);
 
   // Initialize Mapbox Engine
   useEffect(() => {
@@ -259,7 +253,6 @@ function MapContent() {
     if (map.getLayer('province-borders-layer')) map.removeLayer('province-borders-layer');
     if (map.getSource('province-source')) map.removeSource('province-source');
 
-    // Create a map from province name/PSGC to project counts
     const countMap = new Map<string, number>();
     choroplethData.forEach((stat) => {
       countMap.set(stat.name.toLowerCase().trim(), stat.projectCount);
@@ -286,7 +279,6 @@ function MapContent() {
       },
     });
 
-    // Level-of-detail choropleth fill layer: visible at zoom 5 to 8, fades out above zoom 8
     map.addLayer({
       id: 'province-choropleth-layer',
       type: 'fill',
@@ -334,7 +326,6 @@ function MapContent() {
       const bounds = map.getBounds();
       let url = `/api/projects?limit=500`;
 
-      // If zoomed in, use bounding-box cluster query
       if (bounds && map.getZoom() >= 8) {
         url = `/api/map/clusters?sw_lat=${bounds.getSouth()}&sw_lng=${bounds.getWest()}&ne_lat=${bounds.getNorth()}&ne_lng=${bounds.getEast()}&zoom=${map.getZoom()}&limit=600`;
       }
@@ -350,7 +341,6 @@ function MapContent() {
       let visibleProjects: ProjectItem[] = [];
 
       if (data.features) {
-        // GeoJSON clusters response
         visibleProjects = data.features.map((f: any) => ({
           id: f.properties.id,
           name: f.properties.name,
@@ -370,9 +360,23 @@ function MapContent() {
         visibleProjects = data.projects || [];
       }
 
+      // Filter by municipality if selected
+      if (selectedMunicipality) {
+        const muniLower = selectedMunicipality.toLowerCase();
+        visibleProjects = visibleProjects.filter((p) => p.name.toLowerCase().includes(muniLower));
+      }
+
       // Update barangay projects list if barangay selected
       if (selectedBarangay) {
-        setBarangayProjects(visibleProjects.slice(0, 15));
+        const bgryLower = selectedBarangay.toLowerCase();
+        visibleProjects = visibleProjects.filter((p) => p.name.toLowerCase().includes(bgryLower));
+        setBarangayProjects(visibleProjects.slice(0, 20));
+      }
+
+      // Safe check for map before DOM operations
+      const activeMap = mapRef.current;
+      if (!activeMap || typeof activeMap.getCanvasContainer !== 'function' || !activeMap.getCanvasContainer()) {
+        return;
       }
 
       // Clear existing markers & popups
@@ -381,10 +385,10 @@ function MapContent() {
       popupsRef.current.forEach((p) => p.remove());
       popupsRef.current = [];
 
-      const zoom = map.getZoom();
+      const zoom = activeMap.getZoom();
 
-      // Render pins if zoom >= 8 or drill-down active
-      if (zoom >= 7.5 || selectedRegion || selectedProvince) {
+      // Render pins if zoom >= 7.5 or drill-down active
+      if (zoom >= 7.5 || selectedRegion || selectedProvince || selectedMunicipality) {
         for (const p of visibleProjects) {
           if (!p.gpsLng || !p.gpsLat) continue;
 
@@ -467,18 +471,25 @@ function MapContent() {
             setSelectedProjectId(p.id);
           });
 
-          const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([p.gpsLng, p.gpsLat])
-            .addTo(map);
+          // Safe append to map canvas
+          try {
+            if (activeMap?.getCanvasContainer()) {
+              const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                .setLngLat([p.gpsLng, p.gpsLat])
+                .addTo(activeMap);
 
-          markersRef.current.push(marker);
-          popupsRef.current.push(popup);
+              markersRef.current.push(marker);
+              popupsRef.current.push(popup);
+            }
+          } catch (markerErr) {
+            // Ignore map unmounting race conditions
+          }
         }
       }
     } catch (err) {
       console.error('Error rendering map pins:', err);
     }
-  }, [isMapLoaded, selectedRegion, selectedProvince, selectedBarangay, filterAnomaly, selectedProjectId]);
+  }, [isMapLoaded, selectedRegion, selectedProvince, selectedMunicipality, selectedBarangay, filterAnomaly, selectedProjectId]);
 
   useEffect(() => {
     renderMapLayers();
@@ -525,6 +536,12 @@ function MapContent() {
               <span className="font-bold text-gray-800">{selectedProvince}</span>
             </>
           )}
+          {selectedMunicipality && (
+            <>
+              <span>&gt;</span>
+              <span className="font-bold text-blue-700">{selectedMunicipality}</span>
+            </>
+          )}
           {selectedBarangay && (
             <>
               <span>&gt;</span>
@@ -533,10 +550,13 @@ function MapContent() {
           )}
         </div>
 
-        {/* Drill-down Selectors */}
+        {/* Full 1,644-City Drill-down Selectors */}
         <div className="space-y-2">
+          {/* Level 1: Region */}
           <div>
-            <label className="text-[10px] font-bold text-gray-500 uppercase">Region</label>
+            <label className="text-[10px] font-bold text-gray-500 uppercase">
+              1. Region ({hierarchy?.regions.length || 17})
+            </label>
             <select
               value={selectedRegion}
               onChange={(e) => {
@@ -556,9 +576,12 @@ function MapContent() {
             </select>
           </div>
 
+          {/* Level 2: Province */}
           {selectedRegion && (
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase">Province</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">
+                2. Province ({currentProvinces.length})
+              </label>
               <select
                 value={selectedProvince}
                 onChange={(e) => {
@@ -568,24 +591,49 @@ function MapContent() {
                 }}
                 className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
               >
-                <option value="">All Provinces in Region</option>
-                {hierarchy?.regions
-                  .find((r) => r.name === selectedRegion)
-                  ?.provinces.map((p) => (
-                    <option key={p.id} value={p.name}>
-                      {p.name}
-                    </option>
-                  ))}
+                <option value="">All Provinces in {selectedRegion}</option>
+                {currentProvinces.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
           )}
 
+          {/* Level 3: City / Municipality */}
           {selectedProvince && (
             <div>
-              <label className="text-[10px] font-bold text-gray-500 uppercase">Barangay Ground Search</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">
+                3. City / Municipality ({currentCities.length})
+              </label>
+              <select
+                value={selectedMunicipality}
+                onChange={(e) => {
+                  setSelectedMunicipality(e.target.value);
+                  setSelectedBarangay('');
+                }}
+                className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">All Cities in {selectedProvince} ({currentCities.length})</option>
+                {currentCities.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Level 4: Barangay Ground Search */}
+          {(selectedMunicipality || selectedProvince) && (
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase">
+                4. Barangay Search
+              </label>
               <input
                 type="text"
-                placeholder="Enter Barangay name (e.g. San Jose)..."
+                placeholder="Enter Barangay (e.g. Poblacion, San Jose)..."
                 value={selectedBarangay}
                 onChange={(e) => setSelectedBarangay(e.target.value)}
                 className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-800 focus:border-blue-500 focus:outline-none"
@@ -629,15 +677,18 @@ function MapContent() {
         </div>
       </div>
 
-      {/* Barangay Project List Sidebar Drawer (when Barangay active) */}
-      {selectedBarangay && barangayProjects.length > 0 && (
+      {/* Barangay / Municipality Project List Sidebar Drawer */}
+      {(selectedBarangay || selectedMunicipality) && barangayProjects.length > 0 && (
         <div className="absolute top-4 right-4 z-20 w-80 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-200 shadow-xl space-y-2.5 max-h-[calc(100vh-120px)] overflow-y-auto">
           <div className="flex items-center justify-between">
             <span className="font-black text-gray-900 text-xs">
-              📍 Projects in {selectedBarangay} ({barangayProjects.length})
+              📍 Projects in {selectedBarangay || selectedMunicipality} ({barangayProjects.length})
             </span>
             <button
-              onClick={() => setSelectedBarangay('')}
+              onClick={() => {
+                setSelectedBarangay('');
+                setSelectedMunicipality('');
+              }}
               className="text-gray-400 hover:text-gray-700 text-xs font-bold"
             >
               ✕
