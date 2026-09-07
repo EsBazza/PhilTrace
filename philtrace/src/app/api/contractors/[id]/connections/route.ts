@@ -42,7 +42,7 @@ export async function GET(
       contractorId: contractor.id,
       contractorName: contractor.name,
       disclaimer: 'PhilTrace presents verified journalistic and congressional mentions with source citations for public transparency. These citations do not represent legal accusations or official findings by PhilTrace.',
-      connections: contractor.connections.map((c) => ({
+      connections: contractor.connections.map((c: any) => ({
         id: c.id,
         connectedName: c.connectedName,
         connectionType: c.connectionType,

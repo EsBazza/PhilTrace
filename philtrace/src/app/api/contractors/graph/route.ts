@@ -123,7 +123,14 @@ export async function GET() {
       }
     }
 
-    return Response.json({ nodes, edges });
+    return Response.json(
+      { nodes, edges },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error building contractor graph:', error);
     return Response.json(

@@ -78,10 +78,19 @@ model Project {
   lastActivityAt     DateTime?
   aiSummary          String?
   syncSource         String?
+  isLive             Boolean           @default(false)
+  livestreamUrl      String?
   comments           Comment[]
   reviews            Review[]
   contractDocument   ContractDocument?
   updatedAt          DateTime          @updatedAt
+
+  @@index([provinceId])
+  @@index([gpsLat, gpsLng])
+  @@index([status])
+  @@index([category])
+  @@index([budgetPHP])
+  @@index([flagOverdue, flagOverpaid, flagStalled, flagNeverStarted])
 }
 
 // ─── Citizen Engagement Models ──────────────────────────────
@@ -241,4 +250,13 @@ model SyncLog {
   success   Boolean
   error     String?
   createdAt DateTime @default(now())
+}
+
+model AgencyAccount {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  agencyName   String   @default("DPWH")
+  role         String   @default("OFFICIAL")
+  createdAt    DateTime @default(now())
 }

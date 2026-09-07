@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (matchingProvinces.length > 0) {
-        where.provinceId = { in: matchingProvinces.map((p) => p.id) };
+        where.provinceId = { in: matchingProvinces.map((p: { id: string }) => p.id) };
       } else {
         return Response.json({
           projects: [],
@@ -93,30 +93,40 @@ export async function GET(request: NextRequest) {
     const sortField = validSortFields.includes(sort) ? sort : 'budgetPHP';
     const sortOrder = order === 'asc' ? 'asc' : 'desc';
 
-    // Execute query
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        province: {
-          include: { region: true },
+    // Execute queries in parallel
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({
+        where,
+        include: {
+          province: {
+            include: { region: true },
+          },
+        },
+        orderBy: { [sortField]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      limit >= 500 ? Promise.resolve(0) : prisma.project.count({ where }),
+    ]);
+
+    const resolvedTotal = limit >= 500 ? projects.length : total;
+
+    return Response.json(
+      {
+        projects,
+        pagination: {
+          page,
+          limit,
+          total: resolvedTotal,
+          totalPages: Math.ceil(resolvedTotal / limit),
         },
       },
-      orderBy: { [sortField]: sortOrder },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-
-    const total = limit >= 500 ? projects.length : await prisma.project.count({ where });
-
-    return Response.json({
-      projects,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching projects:', error);
     return Response.json(

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         where: { regionId },
         select: { id: true },
       });
-      projectWhere.provinceId = { in: provincesInRegion.map(p => p.id) };
+      projectWhere.provinceId = { in: provincesInRegion.map((p: { id: string }) => p.id) };
     }
 
     // Aggregate project stats by province
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     });
 
     const flaggedMap = new Map<string, number>();
-    flaggedStats.forEach(stat => flaggedMap.set(stat.provinceId, stat._count.id));
+    flaggedStats.forEach((stat: any) => flaggedMap.set(stat.provinceId, stat._count.id));
 
     const provinces = await prisma.province.findMany({
       where: provinceWhere,
@@ -70,12 +70,12 @@ export async function GET(request: NextRequest) {
     });
 
     const provinceMap = new Map<string, typeof provinces[0]>();
-    provinces.forEach(p => provinceMap.set(p.id, p));
+    provinces.forEach((p: any) => provinceMap.set(p.id, p));
 
     if (level === 'province') {
       const data: ChoroplethItem[] = allStats
-        .filter(stat => provinceMap.has(stat.provinceId))
-        .map(stat => {
+        .filter((stat: any) => provinceMap.has(stat.provinceId))
+        .map((stat: any) => {
           const prov = provinceMap.get(stat.provinceId)!;
           return {
             psgcCode: prov.psgcCode,
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         sumProgress: number;
       }>();
 
-      allStats.forEach(stat => {
+      allStats.forEach((stat: any) => {
         const prov = provinceMap.get(stat.provinceId);
         if (!prov) return;
         const reg = prov.region;

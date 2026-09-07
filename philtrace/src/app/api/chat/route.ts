@@ -87,7 +87,7 @@ async function buildWhereFromIntent(intent: ExtractedIntent): Promise<Prisma.Pro
       select: { id: true },
     });
     if (provinces.length > 0) {
-      where.provinceId = { in: provinces.map(p => p.id) };
+      where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
     }
   } else if (intent.region) {
     const regions = await prisma.region.findMany({
@@ -96,10 +96,10 @@ async function buildWhereFromIntent(intent: ExtractedIntent): Promise<Prisma.Pro
     });
     if (regions.length > 0) {
       const provinces = await prisma.province.findMany({
-        where: { regionId: { in: regions.map(r => r.id) } },
+        where: { regionId: { in: regions.map((r: { id: string }) => r.id) } },
         select: { id: true },
       });
-      where.provinceId = { in: provinces.map(p => p.id) };
+      where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
     }
   }
 
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 3: Serialize context for Gemini
-    const projectContext = projects.map(p => ({
+    const projectContext = projects.map((p: any) => ({
       id: p.id,
       name: p.name,
       province: p.province?.name,
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Stream response back with source project IDs
-    const sourceProjectIds = projects.map(p => p.id);
+    const sourceProjectIds = projects.map((p: { id: string }) => p.id);
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({

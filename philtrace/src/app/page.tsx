@@ -21,6 +21,14 @@ interface HomeData {
   lastSync: string;
 }
 
+const getColor = (density: number): string => {
+  if (density >= 0.5) return '#ef4444';
+  if (density >= 0.3) return '#f97316';
+  if (density >= 0.15) return '#ffb241';
+  if (density >= 0.05) return '#84cc16';
+  return '#10b981';
+};
+
 export default function AboutAndHomePage() {
   const router = useRouter();
 
@@ -32,14 +40,6 @@ export default function AboutAndHomePage() {
       return res.json();
     },
   });
-
-  const getColor = (density: number): string => {
-    if (density >= 0.5) return '#ef4444';
-    if (density >= 0.3) return '#f97316';
-    if (density >= 0.15) return '#ffb241';
-    if (density >= 0.05) return '#84cc16';
-    return '#10b981';
-  };
 
   return (
     <div className="w-full bg-[#eeeeee] text-[#01367d] overflow-x-hidden min-h-screen p-0 m-0">

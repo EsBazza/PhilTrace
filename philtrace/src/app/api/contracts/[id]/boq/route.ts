@@ -41,7 +41,7 @@ export async function GET(
     const regionId = contractDoc.project?.province?.regionId;
 
     // Fetch benchmarks for comparison
-    const itemCodes = contractDoc.billOfQuantities.map((item) => item.itemCode);
+    const itemCodes = contractDoc.billOfQuantities.map((item: any) => item.itemCode);
     const benchmarks = await prisma.unitPriceBenchmark.findMany({
       where: {
         itemCode: { in: itemCodes },
@@ -50,7 +50,7 @@ export async function GET(
     });
 
     const benchmarkMap = new Map<string, { nationalAvgPhp: number; regionalAvgPhp: number | null }>();
-    benchmarks.forEach((b) => {
+    benchmarks.forEach((b: any) => {
       const existing = benchmarkMap.get(b.itemCode) || { nationalAvgPhp: b.nationalAvgPhp, regionalAvgPhp: null };
       if (b.regionalAvgPhp) existing.regionalAvgPhp = b.regionalAvgPhp;
       benchmarkMap.set(b.itemCode, existing);
@@ -60,7 +60,7 @@ export async function GET(
     let totalBoqCost = 0;
     let mobilizationCost = 0;
 
-    const itemsWithVariance = contractDoc.billOfQuantities.map((item) => {
+    const itemsWithVariance = contractDoc.billOfQuantities.map((item: any) => {
       totalBoqCost += item.totalPhp;
       if (item.itemCode.toUpperCase().includes('B.9') || item.description.toLowerCase().includes('mobilization')) {
         mobilizationCost += item.totalPhp;
