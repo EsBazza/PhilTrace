@@ -110,23 +110,56 @@ export function useProjects(params: ProjectsParams) {
   });
 }
 
+export interface ProjectDetailData extends ProjectWithRelations {
+  riskScore: number;
+  rawName?: string;
+  avgRating?: number;
+  reviewCount?: number;
+  reviews: Array<{
+    id: string;
+    rating: number;
+    progressRating?: number | null;
+    qualityRating?: number | null;
+    workersActive?: boolean | null;
+    comment: string;
+    photoUrl?: string | null;
+    phoneVerified: boolean;
+    distanceKm?: number | null;
+    corroborations: number;
+    createdAt: string;
+  }>;
+  comments: Array<{
+    id: string;
+    text: string;
+    severity: string;
+    rationale: string;
+    corroborationCount: number;
+    photoUrl: string | null;
+    createdAt: string;
+  }>;
+  contractDocument?: {
+    id: string;
+    sourcePdfUrl: string;
+    contractorLegalName?: string | null;
+    tinNumber?: string | null;
+    contractDurationDays?: number | null;
+    extractionStatus: string;
+    engineerSignature?: {
+      engineerName: string;
+      engineerTitle: string;
+      district?: string | null;
+    } | null;
+  } | null;
+}
+
 export function useProject(id: string) {
-  return useQuery<ProjectWithRelations & {
-    comments: Array<{
-      id: string;
-      text: string;
-      severity: string;
-      rationale: string;
-      corroborationCount: number;
-      photoUrl: string | null;
-      createdAt: string;
-    }>;
-  }>({
+  return useQuery<ProjectDetailData>({
     queryKey: ['project', id],
     queryFn: async () => {
       const res = await fetch(`/api/projects/${id}`);
       if (!res.ok) throw new Error('Failed to fetch project');
-      return res.json();
+      const data = await res.json();
+      return (data.project || data) as ProjectDetailData;
     },
     enabled: !!id,
   });

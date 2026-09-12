@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { resolveProvinceAndRegion } from '@/lib/geo-spatial';
 import { cleanProjectTitle } from '@/lib/title-cleaner';
+import { computeRiskScore } from '@/lib/anomaly-flags';
 
 export async function GET(
   _request: NextRequest,
@@ -19,6 +20,14 @@ export async function GET(
         comments: {
           where: { phoneVerified: true },
           orderBy: { createdAt: 'desc' },
+        },
+        reviews: {
+          orderBy: { createdAt: 'desc' },
+        },
+        contractDocument: {
+          include: {
+            engineerSignature: true,
+          },
         },
       },
     });
@@ -44,11 +53,13 @@ export async function GET(
     }
 
     const cleanedName = cleanProjectTitle(project.name);
+    const riskScore = computeRiskScore(project);
 
     const enrichedProject = {
       ...project,
       name: cleanedName,
       rawName: project.name,
+      riskScore,
       province: {
         id: project.province?.id || '',
         name: resolvedProvince || project.province?.name || '',
@@ -59,7 +70,14 @@ export async function GET(
       },
     };
 
-    return Response.json(enrichedProject);
+    return Response.json(
+      { project: enrichedProject, riskScore },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching project:', error);
     return Response.json(

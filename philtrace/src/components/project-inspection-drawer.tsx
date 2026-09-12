@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { FileText, ExternalLink } from 'lucide-react';
 import { formatCurrency, formatDate, cleanContractorName } from '@/lib/format';
 import { STATUS_COLORS } from '@/lib/constants';
 import WaybackSlider from '@/components/wayback-slider';
@@ -227,6 +229,16 @@ export default function ProjectInspectionDrawer({
                   <div className="text-[10px] text-gray-400 font-mono mt-0.5">{project.id}</div>
                 </div>
               </div>
+
+              {/* Primary Link to Full Project Dossier */}
+              <Link
+                href={`/projects/${encodeURIComponent(project.id)}`}
+                className="flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-500 hover:to-blue-500 transition"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Open Full Project Dossier & Forensic Audit</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
 
               {/* Anomaly Badges */}
               {(project.flagOverdue || project.flagOverpaid || project.flagNeverStarted || project.flagStalled || project.flagPaymentPending) && (

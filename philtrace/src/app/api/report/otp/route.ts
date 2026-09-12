@@ -6,6 +6,14 @@ import { DEMO_PHONE_NUMBER, OTP_EXPIRY_MINUTES } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
+    // Security Guard: Prevent demo bypass in production
+    if (env.DEMO_OTP_BYPASS() && process.env.NODE_ENV === 'production') {
+      return Response.json(
+        { error: 'DEMO_OTP_BYPASS is prohibited in production environments.' },
+        { status: 403 }
+      );
+    }
+
     const { phone, projectId } = (await request.json()) as {
       phone: string;
       projectId?: string;

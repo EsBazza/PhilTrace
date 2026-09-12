@@ -303,6 +303,35 @@ export async function POST(request: NextRequest) {
 
     console.log(`Sync complete: ${upsertedCount} projects upserted from ${source}`);
 
+    // Trigger media intelligence scraping for top flagged projects (throttled to 10)
+    try {
+      const { fetchNewsForProject } = await import('@/lib/news-scraper');
+      const flaggedProjects = await prisma.project.findMany({
+        where: {
+          OR: [
+            { flagOverpaid: true },
+            { flagStalled: true },
+            { flagOverdue: true },
+          ],
+        },
+        include: { province: true },
+        orderBy: { budgetPHP: 'desc' },
+        take: 10,
+      });
+
+      for (const proj of flaggedProjects) {
+        await fetchNewsForProject({
+          id: proj.id,
+          name: proj.name,
+          contractorRaw: proj.contractorRaw,
+          province: proj.province,
+          location: proj.province?.name,
+        }).catch((err) => console.warn(`News scrape error for ${proj.id}:`, err));
+      }
+    } catch (newsErr) {
+      console.warn('Post-sync news scraping failed:', newsErr);
+    }
+
     return Response.json({
       success: true,
       source,

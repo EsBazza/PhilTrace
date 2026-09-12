@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🇵🇭 PhilTrace Application
 
-## Getting Started
+AI-Powered National Public Infrastructure Transparency Platform ("The Google Maps for Philippine Public Works").
 
-First, run the development server:
+For the complete, comprehensive technical documentation, data models, forensic algorithms, full 26-endpoint API reference, and developer runbooks, see:
+👉 **[PHILTRACE_DOCUMENTATION.md](../PHILTRACE_DOCUMENTATION.md)**
 
+---
+
+## ⚡ Quick Start
+
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` and configure your database and API credentials:
+```bash
+cp .env.example .env
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Key variables required:
+- `DATABASE_URL`: PostgreSQL connection string (Supabase transaction pooler).
+- `DIRECT_URL`: PostgreSQL direct connection string.
+- `NEXT_PUBLIC_MAPBOX_TOKEN`: Mapbox GL public token.
+- `GEMINI_API_KEY`: Google Gemini API Key.
+- `DEMO_OTP_BYPASS`: Set `"true"` for local review testing.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Database Migration & Seed
+```bash
+# Push Prisma schema to Postgres
+npx prisma db push
 
-## Learn More
+# Populate PSA regions, provinces, and DPWH infrastructure projects
+npm run seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 4. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

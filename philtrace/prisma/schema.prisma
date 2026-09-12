@@ -83,6 +83,7 @@ model Project {
   comments           Comment[]
   reviews            Review[]
   contractDocument   ContractDocument?
+  newsArticles       NewsArticle[]
   updatedAt          DateTime          @updatedAt
 
   @@index([provinceId])
@@ -260,3 +261,26 @@ model AgencyAccount {
   role         String   @default("OFFICIAL")
   createdAt    DateTime @default(now())
 }
+
+model NewsArticle {
+  id             String   @id @default(cuid())
+  projectId      String?
+  contractorName String?
+  location       String?
+  title          String
+  description    String
+  url            String   @unique
+  source         String
+  publishedAt    DateTime
+  relevanceScore Float    @default(0)
+  aiIngested     Boolean  @default(false)
+  aiSummary      String?
+  createdAt      DateTime @default(now())
+  project        Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([location])
+  @@index([contractorName])
+  @@index([publishedAt])
+}
+

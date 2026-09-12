@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
     // 4. Verify OTP (1 OTP = 1 Review)
     const isDemo =
       process.env.DEMO_OTP_BYPASS === 'true' &&
+      process.env.NODE_ENV !== 'production' &&
       (trimmedPhone === '+639000000000' || otp === '123456');
     let phoneVerified = false;
 
