@@ -20,6 +20,26 @@ interface PhilippinesMapProps {
 }
 
 const REGION_NAME_MAP: Record<string, string> = {
+  // Faeldon 2023 Official PSGC names
+  'Region I (Ilocos Region)': 'Region I',
+  'Region II (Cagayan Valley)': 'Region II',
+  'Region III (Central Luzon)': 'Region III',
+  'Region IV-A (CALABARZON)': 'Region IV-A',
+  'Region V (Bicol Region)': 'Region V',
+  'Region VI (Western Visayas)': 'Region VI',
+  'Region VII (Central Visayas)': 'Region VII',
+  'Region VIII (Eastern Visayas)': 'Region VIII',
+  'Region IX (Zamboanga Peninsula)': 'Region IX',
+  'Region X (Northern Mindanao)': 'Region X',
+  'Region XI (Davao Region)': 'Region XI',
+  'Region XII (SOCCSKSARGEN)': 'Region XII',
+  'National Capital Region (NCR)': 'National Capital Region',
+  'Cordillera Administrative Region (CAR)': 'Cordillera Administrative Region',
+  'Region XIII (Caraga)': 'Region XIII',
+  'MIMAROPA Region': 'Region IV-B',
+  'Bangsamoro Autonomous Region In Muslim Mindanao (BARMM)': 'BARMM',
+
+  // Legacy aliases
   'Autonomous Region of Muslim Mindanao (ARMM)': 'BARMM',
   'Bicol Region (Region V)': 'Region V',
   'CALABARZON (Region IV-A)': 'Region IV-A',
@@ -27,7 +47,6 @@ const REGION_NAME_MAP: Record<string, string> = {
   'Caraga (Region XIII)': 'Region XIII',
   'Central Luzon (Region III)': 'Region III',
   'Central Visayas (Region VII)': 'Region VII',
-  'Cordillera Administrative Region (CAR)': 'Cordillera Administrative Region',
   'Davao Region (Region XI)': 'Region XI',
   'Eastern Visayas (Region VIII)': 'Region VIII',
   'Ilocos Region (Region I)': 'Region I',
@@ -101,7 +120,7 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
     if (!geoData) return null;
 
     const features = geoData.features.map((feature: GeoFeature, index: number) => {
-      const rawName = (feature.properties?.REGION || feature.properties?.name || '') as string;
+      const rawName = (feature.properties?.adm1_en || feature.properties?.REGION || feature.properties?.name || '') as string;
       const dbName = REGION_NAME_MAP[rawName] || rawName;
       const stat = statsMap.get(dbName);
       const density = stat?.anomalyDensity ?? 0;
