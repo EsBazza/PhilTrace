@@ -428,6 +428,13 @@ export default function ProjectInspectionDrawer({
                     </div>
                   )}
 
+                  {boqData.items.some((item: any) => item.isOverpriced) && (
+                    <div className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-900 text-[11px] font-semibold flex items-center gap-1.5">
+                      <span>⚠️</span>
+                      <span>Severe Price Padding Detected: Unit prices exceed national benchmarks by &ge; 30%.</span>
+                    </div>
+                  )}
+
                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                     {boqData.items.map((item: any) => (
                       <div

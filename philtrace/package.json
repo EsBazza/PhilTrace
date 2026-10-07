@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed-all.ts",
@@ -18,6 +18,8 @@
   "dependencies": {
     "@google/genai": "^2.21.0",
     "@prisma/client": "6.19.3",
+    "@react-sigma/core": "^5.0.6",
+    "@supabase/supabase-js": "^2.117.3",
     "@tanstack/react-query": "^5.102.8",
     "@types/d3-geo": "^3.1.1",
     "@types/supercluster": "^7.1.3",
@@ -25,6 +27,9 @@
     "bcryptjs": "^3.0.3",
     "cytoscape": "^3.34.2",
     "d3-geo": "^3.1.1",
+    "graphology": "^0.26.0",
+    "graphology-layout": "^0.6.1",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.42.0",
     "mapbox-gl": "^3.29.0",
@@ -32,8 +37,10 @@
     "react": "^19.2.8",
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^19.2.8",
+    "react-sigma": "^1.2.35",
     "react-simple-maps": "^3.0.0",
     "recharts": "^3.10.1",
+    "sigma": "^3.0.3",
     "supercluster": "^9.1.0",
     "topojson-client": "^3.1.0"
   },

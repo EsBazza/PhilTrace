@@ -415,99 +415,6 @@ interface HFResponse {
   num_rows_total?: number;
 }
 
-// Fallback project generator if HuggingFace is unreachable
-function generateFallbackProjects(targetCount: number, provinces: Array<{ id: string; name: string; region: { name: string } }>): RawHFProject[] {
-  const fallbackList: RawHFProject[] = [];
-  const categories = [
-    'Roads',
-    'Bridges',
-    'Flood Control and Drainage',
-    'Buildings and Facilities',
-    'Water Provision and Storage',
-  ];
-  const contractors = [
-    'R.D. POLICARPIO & COMPANY INC. (12845)',
-    'SAN ROQUE BUILDERS & CONST. SUPPLY (33841)',
-    'CT LEONCIO CONSTRUCTION & TRADING (19032)',
-    'E.C. DE LUNA CONSTRUCTION CORP. (08291)',
-    'PRIME PAVING & INFRASTRUCTURE CORP (24510)',
-    'ALPHA & OMEGA GEN. CONTRACTOR & DEV. CORP. (31450)',
-    'SUNWEST CONSTRUCTION & DEV. CORP. (18742)',
-    'V.V. ALDUAN CONSTRUCTION (09214)',
-    'MAC BUILDERS & SUPPLY (11204)',
-    'SILVER DRAGON CONSTRUCTION & LUMBER & GLASS (04921)',
-    'LEGACY CONSTRUCTION CORPORATION (28419)',
-    'ROYAL CROWN MONARCH CONST. & SUPPLIES (14720)',
-    'B.M. MARKETING & CONSTRUCTION (38201)',
-  ];
-  const statuses = ['On-Going', 'Completed', 'Not Yet Started', 'Suspended', 'Terminated'];
-  const sources = [
-    'Regular Infra - GAA 2023 OO-1',
-    'Regular Infra - GAA 2024 OO-2',
-    'Outside Infra - GAA 2022 DA FMR',
-    'Flood Management Program - GAA 2023',
-    'Local Infrastructure Program - GAA 2024',
-  ];
-
-  for (let i = 0; i < targetCount; i++) {
-    const prov = provinces[i % provinces.length];
-    const category = categories[i % categories.length];
-    const contractor = contractors[i % contractors.length];
-    const status = statuses[i % statuses.length];
-    const budget = Math.round((2_000_000 + (i * 357_911) % 180_000_000) * 100) / 100;
-    
-    let progress = 0;
-    let amountPaid = 0;
-    if (status === 'Completed') {
-      progress = 100;
-      amountPaid = budget;
-    } else if (status === 'On-Going') {
-      progress = Math.round(((i * 7) % 95) * 10) / 10;
-      amountPaid = Math.round((budget * (progress / 100) * 0.9) * 100) / 100;
-    } else if (status === 'Suspended' || status === 'Terminated') {
-      progress = Math.round(((i * 3) % 40) * 10) / 10;
-      amountPaid = Math.round((budget * 0.6) * 100) / 100; // potential overpaid flag
-    }
-
-    const year = 2021 + (i % 4);
-    const startMonth = 1 + (i % 12);
-    const startDate = `${year}-${String(startMonth).padStart(2, '0')}-15`;
-    const completionDate = `${year + 1}-${String((startMonth + 6) % 12 || 12).padStart(2, '0')}-28`;
-
-    // Coordinates bounding box for the Philippines (Lat: 5 to 19, Lng: 119 to 126)
-    const lat = 7.0 + ((i * 1.37) % 11.5);
-    const lng = 120.0 + ((i * 1.19) % 5.8);
-
-    fallbackList.push({
-      contractId: `${String(year).slice(2)}AB${String(1000 + i).slice(1)}`,
-      description: `CONSTRUCTION / REHABILITATION OF ${category.toUpperCase()} AT ${prov.name.toUpperCase()}, ${prov.region.name.toUpperCase()}`,
-      category,
-      status,
-      budget,
-      amountPaid,
-      progress,
-      location: {
-        province: prov.name,
-        region: prov.region.name,
-      },
-      contractor,
-      startDate,
-      completionDate,
-      infraYear: String(year),
-      programName: 'Regular Infrastructure Program',
-      sourceOfFunds: sources[i % sources.length],
-      isLive: i % 15 === 0,
-      livestreamUrl: i % 15 === 0 ? `https://www.youtube.com/watch?v=demo${i}` : null,
-      latitude: lat,
-      longitude: lng,
-      reportCount: i % 12 === 0 ? 3 : 0,
-      hasSatelliteImage: i % 4 !== 0,
-    });
-  }
-
-  return fallbackList;
-}
-
 async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects: RawHFProject[]; source: string }> {
   // Datasets endpoints to try in order
   const datasetCandidates = [
@@ -565,10 +472,8 @@ async function fetchHuggingFaceProjects(targetCount: number): Promise<{ projects
   }
 
   // Fallback if HF APIs are down or unreachable
-  console.log('  -> Note: Hugging Face server unreachable or restricted. Generating high-fidelity realistic DPWH dataset...');
-  const allProvs = await prisma.province.findMany({ include: { region: true } });
-  const fallback = generateFallbackProjects(targetCount, allProvs);
-  return { projects: fallback, source: 'synthetic-dpwh-dataset' };
+  console.log('  -> Note: Hugging Face server unreachable or restricted. Returning empty array.');
+  return { projects: [], source: 'empty' };
 }
 
 async function seedProjectsAndContractors(targetCount: number): Promise<{ projectsCount: number; contractorsCount: number }> {
@@ -779,123 +684,8 @@ async function seedProjectsAndContractors(targetCount: number): Promise<{ projec
    ========================================================================== */
 
 async function seedWhistleblowerAndUpdates(): Promise<{ commentsCount: number; updatesCount: number }> {
-  console.log('\n[4/5] Seeding Verified Whistleblower Comments & Agency Updates...');
-
-  // Find flagged or live projects to attach rich demo data
-  const sampleProjects = await prisma.project.findMany({
-    take: 12,
-    where: {
-      OR: [
-        { flagStalled: true },
-        { flagOverdue: true },
-        { flagOverpaid: true },
-        { flagNeverStarted: true },
-      ],
-    },
-    orderBy: { budgetPHP: 'desc' },
-  });
-
-  // If not enough flagged projects found, grab top projects
-  const targetProjects =
-    sampleProjects.length >= 6
-      ? sampleProjects
-      : await prisma.project.findMany({ take: 8, orderBy: { budgetPHP: 'desc' } });
-
-  const sampleWhistleblowerReports = [
-    {
-      text: 'Walang tao sa construction site for over 6 months na. Nakatiwangwang lang ang mga bakal at kinakalawang na. Matinding traffic pa ang dulot sa mga commuters araw-araw dahil sa baradong kalsada.',
-      severity: 'critical',
-      rationale: 'Prolonged abandonment of public roadway creating severe vehicular hazard and economic disruption.',
-      corroborationCount: 18,
-    },
-    {
-      text: 'Project billboard states 100% completed as of last quarter, but the bridge approach is still completely unpaved with visible erosion on the riverbank footing.',
-      severity: 'critical',
-      rationale: 'Direct discrepancy between official completion reporting and physical structural hazard.',
-      corroborationCount: 12,
-    },
-    {
-      text: 'All heavy equipment was pulled out last October. Open drainage trenches along the school zone have no safety barricades or warning lights.',
-      severity: 'high',
-      rationale: 'Unattended excavation near public school posing imminent risk of injury to pedestrians.',
-      corroborationCount: 24,
-    },
-    {
-      text: 'Notice to Proceed was awarded over 14 months ago. Zero physical mobilization on-site. No DPWH project billboard or fence installed.',
-      severity: 'medium',
-      rationale: 'Prolonged start delay with lack of transparency signboard required by DPWH regulations.',
-      corroborationCount: 9,
-    },
-    {
-      text: 'Substandard concrete pouring observed during continuous torrential rain. Surface cracking already visible along the 500-meter bypass lane after 3 weeks.',
-      severity: 'high',
-      rationale: 'Compromised pavement integrity due to improper curing and weather conditions during laying.',
-      corroborationCount: 31,
-    },
-    {
-      text: 'Flood control revetment collapsed during the latest monsoon surge. Broken sheet piles are now clogging the river mouth.',
-      severity: 'critical',
-      rationale: 'Structural failure of flood mitigation project causing increased flood vulnerability for nearby barangays.',
-      corroborationCount: 42,
-    },
-    {
-      text: 'Pavement thickness appears significantly thinner than the 280mm specified in the DPWH standard engineering design.',
-      severity: 'medium',
-      rationale: 'Potential material spec deviation requiring independent core testing by DPWH Bureau of Quality.',
-      corroborationCount: 7,
-    },
-    {
-      text: 'Walang tao sa construction site for over 6 months na. Nakatiwangwang lang ang mga bakal at kinakalawang na. Matinding traffic pa ang dulot sa mga commuters araw-araw dahil sa baradong kalsada.',
-      severity: 'high',
-      rationale: 'Project appears abandoned despite on-going status',
-      corroborationCount: 15,
-    },
-    {
-      text: 'Hindi pa nasisimulan ang proyekto kahit lampas na ang target start date. Puro damo pa rin ang site at walang equipment o materyales na makikita sa lokasyon.',
-      severity: 'Medium',
-      rationale: 'Never started project confirmed by ground observation',
-    },
-    {
-      text: 'May mga bitak agad ang bagong sementong kalsada kahit kaka-buhos lang noong nakaraang buwan. Mababa ang kalidad ng materyales na ginamit ng contractor.',
-      severity: 'High',
-      rationale: 'Premature structural cracking indicates substandard quality',
-    },
-    {
-      text: 'Delayed na ng halos isang taon. Ayon sa tarp, dapat tapos na noong 2024 pero hanggang ngayon ay nasa pundasyon pa lang.',
-      severity: 'High',
-      rationale: 'Severe project delay exceeding contract timeline',
-    },
-  ];
-
-  let commentsCount = 0;
-  for (let i = 0; i < targetProjects.length; i++) {
-    const proj = targetProjects[i];
-    const report = sampleWhistleblowerReports[i % sampleWhistleblowerReports.length];
-
-    await prisma.comment.create({
-      data: {
-        projectId: proj.id,
-        text: report.text,
-        severity: report.severity,
-        rationale: report.rationale,
-        phoneVerified: true,
-        corroborationCount: Math.floor(Math.random() * 8) + 2,
-      },
-    });
-
-    await prisma.project.update({
-      where: { id: proj.id },
-      data: {
-        reportCount: { increment: 1 },
-        lastActivityAt: new Date(),
-      },
-    });
-
-    commentsCount++;
-  }
-
-  console.log(`  ✓ Seeded ${commentsCount} verified whistleblower comments.`);
-  return { commentsCount, updatesCount: 0 };
+  console.log('\n[4/5] Whistleblower comments will be submitted live by citizens');
+  return { commentsCount: 0, updatesCount: 0 };
 }
 
 /* ==========================================================================

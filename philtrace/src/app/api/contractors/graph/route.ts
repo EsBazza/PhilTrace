@@ -1,29 +1,29 @@
 import { prisma } from '@/lib/prisma';
 import { parseContractors, cleanContractorName } from '@/lib/format';
 
-interface CytoscapeNode {
-  data: {
-    id: string;
-    label: string;
-    totalValue: number;
-    totalContracts: number;
-    avgProgress: number;
-    overdueCount: number;
-    terminatedCount: number;
-    isMonopoly: boolean;
-    monopolyProvince?: string;
-  };
+interface SigmaNode {
+  id: string;
+  label: string;
+  nodeType: 'contractor' | 'project';
+  color: string;
+  size: number;
+  // Contractor properties
+  totalValue?: number;
+  totalContracts?: number;
+  overdueCount?: number;
+  terminatedCount?: number;
+  // Project properties
+  budget?: number;
+  progress?: number;
+  status?: string;
+  flags?: string[];
 }
 
-interface CytoscapeEdge {
-  data: {
-    id: string;
-    source: string;
-    target: string;
-    weight: number;
-    isSuddenJv: boolean;
-    label?: string;
-  };
+interface SigmaEdge {
+  id: string;
+  source: string;
+  target: string;
+  weight: number;
 }
 
 export async function GET() {
@@ -41,85 +41,101 @@ export async function GET() {
 
     const cleanNodeIds = new Set(contractorMap.keys());
 
-    // Get projects with joint ventures and check provincial monopoly
     const projects = await prisma.project.findMany({
       where: {
         OR: [
-          { contractorRaw: { contains: '/' } },
-          { contractorRaw: { contains: ' (JV) ' } },
-          { contractorRaw: { contains: ' JOINT VENTURE ' } },
-          { budgetPHP: { gte: 10000000 } },
+          { budgetPHP: { gte: 30000000 } },
+          { flagOverdue: true },
+          { flagOverpaid: true },
+          { progress: { lte: 10, not: 0 }, updatedAt: { lte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } // Stalled proxy
         ],
       },
       select: {
+        id: true,
+        name: true,
         contractorRaw: true,
         budgetPHP: true,
-        province: { select: { name: true } },
+        progress: true,
+        status: true,
+        flagOverdue: true,
+        flagOverpaid: true,
       },
-      take: 5000,
+      take: 500,
     });
 
-    // Build edge map and detect sudden JVs (>₱10M)
-    const edgeMap = new Map<string, { weight: number; isSuddenJv: boolean }>();
-    const activeConnectedNodeIds = new Set<string>();
+    const nodes: SigmaNode[] = [];
+    const edges: SigmaEdge[] = [];
+    const projectNodesAdded = new Set<string>();
+    const contractorNodesAdded = new Set<string>();
 
     for (const project of projects) {
       const names = parseContractors(project.contractorRaw);
-      if (names.length < 2) continue;
-
-      const isLargeContract = project.budgetPHP >= 10000000;
-
-      for (let i = 0; i < names.length; i++) {
-        for (let j = i + 1; j < names.length; j++) {
-          const c1 = names[i];
-          const c2 = names[j];
-
-          if (c1 && c2 && c1 !== c2 && cleanNodeIds.has(c1) && cleanNodeIds.has(c2)) {
-            const key = [c1, c2].sort().join('|||');
-            const existing = edgeMap.get(key) || { weight: 0, isSuddenJv: false };
-            existing.weight++;
-            if (isLargeContract) existing.isSuddenJv = true;
-
-            edgeMap.set(key, existing);
-            activeConnectedNodeIds.add(c1);
-            activeConnectedNodeIds.add(c2);
+      let linked = false;
+      
+      for (const name of names) {
+        if (cleanNodeIds.has(name)) {
+          linked = true;
+          // Add edge
+          edges.push({
+            id: `e_${name}_${project.id}`,
+            source: name,
+            target: project.id,
+            weight: 1,
+          });
+          
+          if (!contractorNodesAdded.has(name)) {
+            const c = contractorMap.get(name)!;
+            nodes.push({
+              id: name,
+              label: name,
+              nodeType: 'contractor',
+              color: '#3b82f6', // blue
+              size: Math.max(5, Math.min(20, (c.totalValuePHP / 100000000) * 5)),
+              totalValue: c.totalValuePHP,
+              totalContracts: c.totalContracts,
+              overdueCount: c.overdueCount,
+              terminatedCount: c.terminatedCount,
+            });
+            contractorNodesAdded.add(name);
           }
         }
       }
+
+      if (linked && !projectNodesAdded.has(project.id)) {
+        const flags = [];
+        if (project.flagOverdue) flags.push('Overdue');
+        if (project.flagOverpaid) flags.push('Overpaid');
+
+        nodes.push({
+          id: project.id,
+          label: project.name.substring(0, 30) + '...',
+          nodeType: 'project',
+          color: flags.length > 0 ? '#ef4444' : '#10b981', // red or green
+          size: Math.max(3, Math.min(15, (project.budgetPHP / 30000000) * 5)),
+          budget: project.budgetPHP,
+          progress: project.progress,
+          status: project.status,
+          flags,
+        });
+        projectNodesAdded.add(project.id);
+      }
     }
 
-    const nodes: CytoscapeNode[] = Array.from(contractorMap.entries()).map(([cleanName, c]) => {
-      // Check overdue/terminated or high risk
-      const isHighRisk = c.overdueCount > 3 || c.terminatedCount > 0;
-
-      return {
-        data: {
-          id: cleanName,
-          label: cleanName,
+    // Add remaining contractors that might not have edges in this subset
+    for (const [name, c] of contractorMap.entries()) {
+      if (!contractorNodesAdded.has(name)) {
+        nodes.push({
+          id: name,
+          label: name,
+          nodeType: 'contractor',
+          color: '#3b82f6',
+          size: Math.max(5, Math.min(20, (c.totalValuePHP / 100000000) * 5)),
           totalValue: c.totalValuePHP,
           totalContracts: c.totalContracts,
-          avgProgress: c.avgProgress,
           overdueCount: c.overdueCount,
           terminatedCount: c.terminatedCount,
-          isMonopoly: isHighRisk,
-        },
-      };
-    });
-
-    const edges: CytoscapeEdge[] = [];
-    for (const [key, data] of edgeMap) {
-      const [source, target] = key.split('|||');
-      if (cleanNodeIds.has(source) && cleanNodeIds.has(target)) {
-        edges.push({
-          data: {
-            id: `${source}-${target}`,
-            source,
-            target,
-            weight: data.weight,
-            isSuddenJv: data.isSuddenJv,
-            label: data.isSuddenJv ? 'NEW JV' : undefined,
-          },
         });
+        contractorNodesAdded.add(name);
       }
     }
 
@@ -132,9 +148,9 @@ export async function GET() {
       }
     );
   } catch (error) {
-    console.error('Error building contractor graph:', error);
+    console.error('Error building bipartite graph:', error);
     return Response.json(
-      { error: 'Failed to build contractor graph' },
+      { error: 'Failed to build graph' },
       { status: 500 }
     );
   }

@@ -6,6 +6,8 @@ import { buildProvinceLookup } from '@/lib/province-normalizer';
 import { cleanContractorName, parseContractors } from '@/lib/format';
 import { DPWH_API_BASE, HF_DATASET_API, HF_DATASET_NAME, SYNC_DELAY_MS, SYNC_BATCH_SIZE } from '@/lib/constants';
 
+export const maxDuration = 60; // Set maximum duration for Vercel serverless function
+
 interface DPWHProject {
   contractId: string;
   description: string;
@@ -350,3 +352,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Support Vercel Cron which invokes cron routes via HTTP GET
+export { POST as GET };

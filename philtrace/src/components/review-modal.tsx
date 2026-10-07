@@ -30,8 +30,8 @@ export default function ReviewModal({
   const [photoUrl, setPhotoUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
-  const [phone, setPhone] = useState<string>('+639000000000');
-  const [otp, setOtp] = useState<string>('123456');
+  const [phone, setPhone] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
   const [otpSent, setOtpSent] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -492,9 +492,6 @@ export default function ReviewModal({
                 <span className="font-bold text-blue-900">Anti-Fraud Phone Verification</span>
                 <p className="text-[10px] text-blue-700 mt-0.5">1 OTP code = 1 review per project</p>
               </div>
-              <span className="text-[10px] text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-mono">
-                Demo: +639000000000 / 123456
-              </span>
             </div>
 
             <div className="flex items-center gap-2">

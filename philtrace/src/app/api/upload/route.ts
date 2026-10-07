@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 import crypto from 'crypto';
+import path from 'path';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -13,11 +14,13 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const BUCKET_NAME = 'review-photos';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const projectId = (formData.get('projectId') as string | null) || 'general';
 
     if (!file) {
       return Response.json({ error: 'No image file provided' }, { status: 400 });
@@ -48,27 +51,58 @@ export async function POST(request: NextRequest) {
       ext = file.type === 'image/png' ? '.png' : file.type === 'image/webp' ? '.webp' : '.jpg';
     }
 
-    // Unique filename
-    const uniqueName = `ground-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+    const uniqueId = crypto.randomUUID();
+    const filePath = `${projectId}/${Date.now()}_${uniqueId}${ext}`;
 
-    // Target upload directory: public/uploads
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadDir, { recursive: true });
+    const supabaseUrl = env.SUPABASE_URL();
+    const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY();
 
-    const filePath = path.join(uploadDir, uniqueName);
-    await writeFile(filePath, buffer);
+    // If Supabase Storage is configured, upload to cloud storage
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const publicUrl = `/uploads/${uniqueName}`;
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, buffer, {
+          contentType: file.type || 'image/jpeg',
+          upsert: true,
+        });
+
+      if (error) {
+        console.error('Supabase storage upload error:', error);
+        return Response.json(
+          { error: `Cloud storage error: ${error.message}` },
+          { status: 500 }
+        );
+      }
+
+      const { data: publicData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(data.path);
+
+      return Response.json({
+        success: true,
+        url: publicData.publicUrl,
+        fileName: filePath,
+        provider: 'supabase',
+      });
+    }
+
+    // Fallback: Data URL if cloud storage env variables are not yet populated
+    // This allows Vercel deployments to succeed without crashing with EROFS read-only disk error
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:${file.type || 'image/jpeg'};base64,${base64Data}`;
 
     return Response.json({
       success: true,
-      url: publicUrl,
-      fileName: uniqueName,
+      url: dataUrl,
+      fileName: filePath,
+      provider: 'inline_fallback',
     });
   } catch (error) {
     console.error('Error handling file upload:', error);
     return Response.json(
-      { error: 'Failed to upload photo.' },
+      { error: 'Failed to process image upload' },
       { status: 500 }
     );
   }

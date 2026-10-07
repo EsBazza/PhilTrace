@@ -23,5 +23,7 @@ export const env = {
   SEMAPHORE_API_KEY: () => getEnvVar('SEMAPHORE_API_KEY'),
   JWT_SECRET: () => getEnvVar('JWT_SECRET'),
   CRON_SECRET: () => getEnvVar('CRON_SECRET'),
+  SUPABASE_URL: () => getOptionalEnvVar('NEXT_PUBLIC_SUPABASE_URL', ''),
+  SUPABASE_SERVICE_ROLE_KEY: () => getOptionalEnvVar('SUPABASE_SERVICE_ROLE_KEY', ''),
   DEMO_OTP_BYPASS: () => getOptionalEnvVar('DEMO_OTP_BYPASS', 'false') === 'true',
 } as const;

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import cytoscape from 'cytoscape';
 import { useContractorGraph, useContractors } from '@/hooks/use-projects';
 import { formatCurrency } from '@/lib/format';
+import SigmaNetwork from '@/components/contractors/sigma-network';
+import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 
 interface ContractorNodeData {
   id: string;
@@ -23,14 +24,12 @@ export default function ContractorsPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedContractor, setSelectedContractor] = useState<ContractorNodeData | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'totalValuePHP' | 'totalContracts' | 'overdueCount' | 'avgProgress'>('totalValuePHP');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [filterRisk, setFilterRisk] = useState<'all' | 'clean' | 'overdue' | 'highrisk'>('all');
   const [activeView, setActiveView] = useState<'cards' | 'network'>('cards');
   const [page, setPage] = useState(1);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cyRef = useRef<cytoscape.Core | null>(null);
 
   // Query paginated contractors for leaderboard
   const { data: contractorsData, isLoading: isTableLoading } = useContractors({
@@ -41,143 +40,10 @@ export default function ContractorsPage() {
     order: sortOrder,
   });
 
-  // Initialize Cytoscape.js when network view is active
-  useEffect(() => {
-    if (activeView !== 'network' || !containerRef.current || !graphData?.nodes || graphData.nodes.length === 0) return;
-
-    const nodes = (graphData.nodes as Array<{ data: ContractorNodeData }>).map((n) => {
-      const d = n.data;
-      const size = Math.max(26, Math.min(75, Math.log10(d.totalValue || 1000000) * 6.5));
-      let bgColor = '#10b981'; // Green
-      if (d.overdueCount > 3 || d.terminatedCount > 0) {
-        bgColor = '#a80101'; // Red
-      } else if (d.overdueCount > 0) {
-        bgColor = '#ffb241'; // Amber/Gold
-      }
-
-      return {
-        data: {
-          ...d,
-          size,
-          bgColor,
-        },
-      };
-    });
-
-    const edges = graphData.edges || [];
-
-    const cy = cytoscape({
-      container: containerRef.current,
-      elements: [...nodes, ...edges],
-      style: [
-        {
-          selector: 'node',
-          style: {
-            'background-color': 'data(bgColor)',
-            label: 'data(label)',
-            'font-size': '11px',
-            'font-weight': 'bold',
-            color: '#ffffff',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'text-outline-color': '#011438',
-            'text-outline-width': '2px',
-            'text-max-width': '120px',
-            'text-wrap': 'ellipsis',
-            width: 'data(size)',
-            height: 'data(size)',
-            'border-width': 2,
-            'border-color': '#ffffff',
-            'border-opacity': 0.9,
-            'transition-property': 'background-color, line-color, target-arrow-color, opacity',
-            'transition-duration': 0.2,
-          },
-        },
-        {
-          selector: 'node:selected',
-          style: {
-            'border-width': 4,
-            'border-color': '#ffb241',
-            'border-opacity': 1,
-          },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 'mapData(weight, 1, 10, 1.5, 6)',
-            'line-color': '#01367d',
-            opacity: 0.5,
-            'curve-style': 'bezier',
-          },
-        },
-        {
-          selector: '.highlighted',
-          style: {
-            opacity: 1,
-            'line-color': '#ffb241',
-            'z-index': 999,
-          },
-        },
-        {
-          selector: '.dimmed',
-          style: {
-            opacity: 0.15,
-          },
-        },
-      ],
-      layout: {
-        name: 'cose',
-        animate: false,
-        randomize: false,
-        componentSpacing: 100,
-        nodeOverlap: 20,
-        idealEdgeLength: 100,
-        edgeElasticity: 100,
-        nestingFactor: 5,
-        gravity: 80,
-        numIter: 1000,
-        initialTemp: 200,
-        coolingFactor: 0.95,
-        minTemp: 1.0,
-      },
-    });
-
-    cy.on('tap', 'node', (evt) => {
-      const node = evt.target;
-      const data = node.data() as ContractorNodeData;
-      setSelectedContractor(data);
-
-      cy.elements().removeClass('highlighted').addClass('dimmed');
-      node.removeClass('dimmed').addClass('highlighted');
-      node.neighborhood().removeClass('dimmed').addClass('highlighted');
-    });
-
-    cy.on('tap', (evt) => {
-      if (evt.target === cy) {
-        cy.elements().removeClass('highlighted').removeClass('dimmed');
-        setSelectedContractor(null);
-      }
-    });
-
-    cyRef.current = cy;
-
-    return () => {
-      cy.destroy();
-      cyRef.current = null;
-    };
-  }, [graphData, activeView]);
-
-  const resetGraphView = () => {
-    if (cyRef.current) {
-      cyRef.current.elements().removeClass('highlighted').removeClass('dimmed');
-      cyRef.current.fit(undefined, 40);
-      setSelectedContractor(null);
-    }
-  };
-
   const rawContractorsList = contractorsData?.contractors || [];
   const contractorsList = rawContractorsList.filter((c) => {
     if (filterRisk === 'clean') return c.overdueCount === 0 && c.terminatedCount === 0;
+
     if (filterRisk === 'overdue') return c.overdueCount > 0 && c.overdueCount <= 3;
     if (filterRisk === 'highrisk') return c.overdueCount > 3 || c.terminatedCount > 0;
     return true;
@@ -195,6 +61,16 @@ export default function ContractorsPage() {
     overdueCount: contractorsList[0].overdueCount,
     terminatedCount: contractorsList[0].terminatedCount,
   } : null);
+
+  const summaryStats = { clean: 0, overdue: 0, terminated: 0 };
+  if (graphData?.nodes) {
+    graphData.nodes.forEach((n: any) => {
+      const d = n.data;
+      if (d.terminatedCount > 0) summaryStats.terminated++;
+      else if (d.overdueCount > 0) summaryStats.overdue++;
+      else summaryStats.clean++;
+    });
+  }
 
   return (
     <div className="w-full min-h-screen bg-[#f4f6fb] text-gray-900 p-0 m-0 overflow-x-hidden font-sans">
@@ -370,28 +246,8 @@ export default function ContractorsPage() {
               <div className="rounded-3xl border border-[#01367d]/20 bg-[#011438] p-6 shadow-2xl text-white space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-white/15">
                   <div>
-                    <h2 className="text-xl font-black text-white">Joint-Venture Network Cluster</h2>
-                    <p className="text-xs text-white/70">Click nodes to inspect partner co-occurrences.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.25)}
-                      className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-white/20"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 0.8)}
-                      className="rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-white/20"
-                    >
-                      &minus;
-                    </button>
-                    <button
-                      onClick={resetGraphView}
-                      className="rounded-full bg-[#ffb241] px-4 py-1.5 text-xs font-black text-[#01367d]"
-                    >
-                      Reset View
-                    </button>
+                    <h2 className="text-xl font-black text-white">Bipartite Network Graph</h2>
+                    <p className="text-xs text-white/70">Click a project (green/red) to view details, or contractor (blue) to highlight.</p>
                   </div>
                 </div>
 
@@ -400,13 +256,20 @@ export default function ContractorsPage() {
                     <div className="flex h-full items-center justify-center text-white/70">
                       <div className="flex flex-col items-center gap-2">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ffb241] border-t-transparent" />
-                        <span className="text-xs font-semibold">Generating joint-venture network...</span>
+                        <span className="text-xs font-semibold">Generating bipartite network...</span>
                       </div>
                     </div>
                   ) : (
-                    <div ref={containerRef} className="h-full w-full" />
+                    <div className="h-full w-full">
+                      <SigmaNetwork 
+                        graphData={graphData} 
+                        onProjectClick={(id) => setSelectedProjectId(id)}
+                        onContractorClick={(data) => setSelectedContractor(data)}
+                      />
+                    </div>
                   )}
                 </div>
+
               </div>
             ) : (
               /* Klatschboard Style List Cards Stream */
@@ -600,7 +463,7 @@ export default function ContractorsPage() {
                   <div className="h-8 w-8 rounded-full bg-emerald-500 text-white font-black flex items-center justify-center text-xs shadow-sm mb-1">
                     ✓
                   </div>
-                  <span className="text-base sm:text-lg font-black text-emerald-900">5,240</span>
+                  <span className="text-base sm:text-lg font-black text-emerald-900">{summaryStats.clean.toLocaleString()}</span>
                   <span className="text-xs font-bold text-emerald-700 mt-0.5">Clean</span>
                 </div>
 
@@ -609,7 +472,7 @@ export default function ContractorsPage() {
                   <div className="h-8 w-8 rounded-full bg-[#ffb241] text-[#01367d] font-black flex items-center justify-center text-xs shadow-sm mb-1">
                     !
                   </div>
-                  <span className="text-base sm:text-lg font-black text-amber-900">1,120</span>
+                  <span className="text-base sm:text-lg font-black text-amber-900">{summaryStats.overdue.toLocaleString()}</span>
                   <span className="text-xs font-bold text-amber-700 mt-0.5">Overdue</span>
                 </div>
 
@@ -618,7 +481,7 @@ export default function ContractorsPage() {
                   <div className="h-8 w-8 rounded-full bg-[#a80101] text-white font-black flex items-center justify-center text-xs shadow-sm mb-1">
                     ✕
                   </div>
-                  <span className="text-base sm:text-lg font-black text-red-900">42</span>
+                  <span className="text-base sm:text-lg font-black text-red-900">{summaryStats.terminated.toLocaleString()}</span>
                   <span className="text-xs font-bold text-red-700 mt-0.5">Terminated</span>
                 </div>
               </div>
@@ -714,6 +577,7 @@ export default function ContractorsPage() {
           &copy; {new Date().getFullYear()} MapaTunAI by UA HOW 2. All public contract metrics sourced from official DPWH disclosures &amp; verified citizen ground reports.
         </p>
       </footer>
+      <ProjectInspectionDrawer projectId={selectedProjectId} onClose={() => setSelectedProjectId(null)} />
     </div>
   );
 }

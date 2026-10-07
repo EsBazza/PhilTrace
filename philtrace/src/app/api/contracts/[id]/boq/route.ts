@@ -83,6 +83,8 @@ export async function GET(
         regionalAvgPhp: bm?.regionalAvgPhp ?? null,
         variancePct: variancePct !== null ? Math.round(variancePct * 10) / 10 : null,
         flagUnitPriceAnomaly: isAnomalous,
+        isOverpriced: isAnomalous,
+        priceVariancePct: variancePct !== null ? Math.round(variancePct * 10) / 10 : null,
       };
     });
 

@@ -61,8 +61,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    const recentOtpsCount = await prisma.otpCode.count({
+      where: {
+        phone: trimmedPhone,
+        createdAt: { gte: fifteenMinutesAgo },
+      },
+    });
+
+    if (recentOtpsCount >= 3) {
+      return Response.json(
+        { error: 'Too many OTP requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     // Generate 6-digit OTP
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
     // Store OTP with optional projectId

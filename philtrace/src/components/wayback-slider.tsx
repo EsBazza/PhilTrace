@@ -20,22 +20,7 @@ interface WaybackRelease {
   isDueYear: boolean;
 }
 
-// Verified ESRI Wayback MapServer release identifiers (closest to year-end / major update per year)
-export const ESRI_WAYBACK_RELEASES: Record<number, { m: string; name: string; releaseDate: string }> = {
-  2014: { m: '5844', name: 'WB_2014_R21', releaseDate: 'Dec 30, 2014' },
-  2015: { m: '28163', name: 'WB_2015_R23', releaseDate: 'Dec 16, 2015' },
-  2016: { m: '18966', name: 'WB_2016_R22', releaseDate: 'Dec 20, 2016' },
-  2017: { m: '25521', name: 'WB_2017_R19', releaseDate: 'Nov 16, 2017' },
-  2018: { m: '23448', name: 'WB_2018_R17', releaseDate: 'Dec 14, 2018' },
-  2019: { m: '4756', name: 'WB_2019_R16', releaseDate: 'Dec 12, 2019' },
-  2020: { m: '29260', name: 'WB_2020_R16', releaseDate: 'Dec 16, 2020' },
-  2021: { m: '26120', name: 'WB_2021_R17', releaseDate: 'Dec 21, 2021' },
-  2022: { m: '45134', name: 'WB_2022_R15', releaseDate: 'Dec 14, 2022' },
-  2023: { m: '56102', name: 'WB_2023_R11', releaseDate: 'Dec 07, 2023' },
-  2024: { m: '16453', name: 'WB_2024_R13', releaseDate: 'Dec 12, 2024' },
-  2025: { m: '13192', name: 'WB_2025_R12', releaseDate: 'Dec 18, 2025' },
-  2026: { m: '26334', name: 'WB_2026_R07', releaseDate: 'Aug 05, 2026' },
-};
+import { ESRI_WAYBACK_CATALOG } from '@/lib/constants';
 
 export default function WaybackSlider({
   gpsLat,
@@ -57,7 +42,7 @@ export default function WaybackSlider({
     const maxYear = 2026;
 
     for (let yr = minYear; yr <= maxYear; yr++) {
-      const entry = ESRI_WAYBACK_RELEASES[yr] || ESRI_WAYBACK_RELEASES[2026];
+      const entry = ESRI_WAYBACK_CATALOG[yr] || ESRI_WAYBACK_CATALOG[2026];
       list.push({
         year: yr,
         m: entry.m,

@@ -31,25 +31,20 @@ interface DrillDownPanelProps {
   currentZoom: number;
   totalPoints: number;
   isReady: boolean;
-  // Sorted regions
   sortedRegions: RegionItem[];
-  // Current selections
   region: string;
   province: string;
   municipality: string;
   barangay: string;
   filterAnomaly: string;
-  // Handlers
   setRegion: (v: string) => void;
   setProvince: (v: string) => void;
   setMunicipality: (v: string, file?: string) => void;
   setBarangay: (v: string, bounds?: [[number, number], [number, number]]) => void;
   setFilterAnomaly: (v: string) => void;
   navigateTo: (level: 'root' | 'region' | 'province' | 'municipality') => void;
-  // Basemap
   basemap: string;
   setBasemap: (v: 'satellite' | 'dark' | 'streets') => void;
-  // Computed data
   getProvinces: (regionName: string) => ProvinceItem[];
   getCities: (regionName: string, provinceName: string) => CityItem[];
 }
@@ -78,7 +73,6 @@ export default function DrillDownPanel({
   const currentProvinces = useMemo(() => getProvinces(region), [region, getProvinces]);
   const currentCities = useMemo(() => getCities(region, province), [region, province, getCities]);
 
-  // Barangay dropdown data loaded from /api/locations/barangays with REAL bounds
   const [barangays, setBarangays] = useState<BarangayItem[]>([]);
   const [loadingBarangays, setLoadingBarangays] = useState(false);
 
@@ -113,130 +107,116 @@ export default function DrillDownPanel({
     return n.toLocaleString();
   };
 
+  const RISK_FILTERS = [
+    { value: 'overdue', label: '🔴 Overdue' },
+    { value: 'overpaid', label: '🟡 Overpaid' },
+    { value: 'active', label: '🔵 Active' },
+    { value: 'completed', label: '🟢 Completed' },
+  ];
+
   return (
-    <div className="absolute top-4 left-4 z-20 w-80 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-200 shadow-xl space-y-3 text-xs">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="font-black text-gray-900 uppercase tracking-wider text-[11px]">
-          🇵🇭 Geospatial Inspector
-        </span>
-        <div className="flex items-center gap-2">
-          {isReady && (
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-              {formatCount(totalPoints)} projects
-            </span>
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-11/12 max-w-5xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-3 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-2xl flex flex-col gap-3 text-xs">
+      {/* Top Row: Breadcrumbs & Stats */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Breadcrumb Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 font-semibold">
+          <button
+            onClick={() => navigateTo('root')}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100/80 text-blue-800 hover:bg-blue-200 transition"
+          >
+            🇵🇭 Philippines
+          </button>
+          
+          {region && (
+            <>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <button
+                onClick={() => navigateTo('region')}
+                className="px-2.5 py-1 rounded-full bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                {region.replace(/\s*\(.*\)/, '').slice(0, 25)}
+              </button>
+            </>
           )}
-          <span className="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-            Zoom {currentZoom.toFixed(1)}
-          </span>
+          
+          {province && (
+            <>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <button
+                onClick={() => navigateTo('province')}
+                className="px-2.5 py-1 rounded-full bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                {province}
+              </button>
+            </>
+          )}
+
+          {municipality && (
+            <>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <button
+                onClick={() => navigateTo('municipality')}
+                className="px-2.5 py-1 rounded-full bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+              >
+                {municipality}
+              </button>
+            </>
+          )}
+
+          {barangay && (
+            <>
+              <span className="text-gray-400 dark:text-gray-500">/</span>
+              <span className="px-2.5 py-1 rounded-full bg-emerald-100/80 text-emerald-800">
+                {barangay}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Global Info */}
+        <div className="flex items-center gap-2">
+          {isReady ? (
+            <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/50 px-2 py-1 rounded-lg">
+              {formatCount(totalPoints)} Projects
+            </span>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/50 px-2 py-1 rounded-lg">
+              <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <span className="font-semibold text-blue-700 dark:text-blue-400">Loading...</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Loading indicator */}
-      {!isReady && (
-        <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
-          <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-[10px] font-semibold text-blue-700">Loading 248k+ projects...</span>
-        </div>
-      )}
-
-      {/* Hierarchical Breadcrumbs */}
-      <div className="text-[10px] text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100 flex flex-wrap items-center gap-1 font-medium">
-        <button
-          onClick={() => navigateTo('root')}
-          className="text-blue-600 font-bold hover:underline"
-        >
-          Philippines
-        </button>
-        {region && (
-          <>
-            <span className="text-gray-400">&gt;</span>
-            <button
-              onClick={() => navigateTo('region')}
-              className="text-blue-600 font-bold hover:underline"
-            >
-              {region.replace(/\s*\(.*\)/, '').slice(0, 25)}
-            </button>
-          </>
-        )}
-        {province && (
-          <>
-            <span className="text-gray-400">&gt;</span>
-            <button
-              onClick={() => navigateTo('province')}
-              className="text-blue-600 font-bold hover:underline"
-            >
-              {province}
-            </button>
-          </>
-        )}
-        {municipality && (
-          <>
-            <span className="text-gray-400">&gt;</span>
-            <button
-              onClick={() => navigateTo('municipality')}
-              className="text-blue-700 font-bold hover:underline"
-            >
-              {municipality}
-            </button>
-          </>
-        )}
-        {barangay && (
-          <>
-            <span className="text-gray-400">&gt;</span>
-            <span className="font-bold text-emerald-700">{barangay}</span>
-          </>
-        )}
-      </div>
-
-      {/* Drill-down Selectors */}
-      <div className="space-y-2">
-        {/* Level 1: Region */}
-        <div>
-          <label className="text-[10px] font-bold text-gray-500 uppercase">
-            1. Region ({sortedRegions.length || 17})
-          </label>
+      {/* Bottom Row: Controls */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Drill-down Selectors inline */}
+        <div className="flex items-center gap-2 flex-1">
           <select
             value={region}
             onChange={(e) => setRegion(e.target.value)}
-            className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
+            className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 p-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">All Regions (Nationwide)</option>
+            <option value="">All Regions</option>
             {sortedRegions.map((r) => (
-              <option key={r.id} value={r.name}>
-                {r.name}
-              </option>
+              <option key={r.id} value={r.name}>{r.name}</option>
             ))}
           </select>
-        </div>
 
-        {/* Level 2: Province */}
-        {region && (
-          <div>
-            <label className="text-[10px] font-bold text-gray-500 uppercase">
-              2. Province ({currentProvinces.length})
-            </label>
+          {region && (
             <select
               value={province}
               onChange={(e) => setProvince(e.target.value)}
-              className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
+              className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 p-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="">All Provinces in {region.replace(/\s*\(.*\)/, '')}</option>
+              <option value="">All Provinces</option>
               {currentProvinces.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name}
-                </option>
+                <option key={p.id} value={p.name}>{p.name}</option>
               ))}
             </select>
-          </div>
-        )}
+          )}
 
-        {/* Level 3: City / Municipality */}
-        {province && (
-          <div>
-            <label className="text-[10px] font-bold text-gray-500 uppercase">
-              3. City / Municipality ({currentCities.length})
-            </label>
+          {province && (
             <select
               value={municipality}
               onChange={(e) => {
@@ -244,92 +224,56 @@ export default function DrillDownPanel({
                 const cityItem = currentCities.find((c) => c.name === val);
                 setMunicipality(val, cityItem?.file);
               }}
-              className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
+              className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 p-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="">All Cities in {province} ({currentCities.length})</option>
+              <option value="">All Cities / Muni</option>
               {currentCities.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.name}>{c.name}</option>
               ))}
             </select>
-          </div>
-        )}
+          )}
 
-        {/* Level 4: Barangay Dropdown (from official 41k barangay GeoJSON boundaries) */}
-        {(municipality || province) && (
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-gray-500 uppercase">
-                4. Barangay {barangays.length > 0 ? `(${barangays.length})` : ''}
-              </label>
-              {loadingBarangays && (
-                <span className="text-[9px] text-blue-500 animate-pulse font-semibold">
-                  Loading...
-                </span>
-              )}
-            </div>
+          {(municipality || province) && barangays.length > 0 && (
+            <select
+              value={barangay}
+              onChange={(e) => {
+                const val = e.target.value;
+                const bObj = barangays.find((b) => b.name === val);
+                setBarangay(val, bObj?.bounds);
+              }}
+              className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 p-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">All Barangays</option>
+              {barangays.map((b) => (
+                <option key={b.name} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
 
-            {barangays.length > 0 ? (
-              <select
-                value={barangay}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const bObj = barangays.find((b) => b.name === val);
-                  setBarangay(val, bObj?.bounds);
-                }}
-                className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">All Barangays in {municipality} ({barangays.length})</option>
-                {barangays.map((b) => (
-                  <option key={b.name} value={b.name}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                placeholder="Search barangay (e.g. Poblacion, San Jose)..."
-                value={barangay}
-                onChange={(e) => setBarangay(e.target.value)}
-                className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-800 focus:border-blue-500 focus:outline-none"
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Anomaly Filter */}
-      <div>
-        <label className="text-[10px] font-bold text-gray-500 uppercase">Filter Risk Flags</label>
-        <select
-          value={filterAnomaly}
-          onChange={(e) => setFilterAnomaly(e.target.value)}
-          className="mt-0.5 w-full rounded-lg border border-gray-200 bg-white p-2 text-xs font-semibold text-gray-800 focus:border-blue-500 focus:outline-none"
-        >
-          <option value="All">All Projects</option>
-          <option value="overpaid">🚨 Overpaid (&lt;30% progress, &gt;80% paid)</option>
-          <option value="stalled">⚠️ Stalled (No activity 180+ days)</option>
-          <option value="overdue">🟡 Overdue Contracts</option>
-          <option value="neverStarted">Never Started</option>
-          <option value="paymentPending">💰 Payment Pending</option>
-        </select>
-      </div>
-
-      {/* Basemap Switcher */}
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-        <span className="text-[10px] font-bold text-gray-500">Basemap</span>
-        <div className="flex rounded-lg bg-gray-100 p-0.5 text-[10px] font-bold">
-          {(['satellite', 'streets', 'dark'] as const).map((mode) => (
+        {/* Quick Risk Filters */}
+        <div className="flex items-center gap-1.5 border-l border-gray-300 dark:border-slate-600 pl-3">
+          <button
+            onClick={() => setFilterAnomaly('All')}
+            className={`px-2 py-1 rounded-md font-bold transition ${
+              filterAnomaly === 'All'
+                ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 shadow'
+                : 'bg-white/50 text-slate-600 hover:bg-white dark:bg-slate-800/50 dark:text-slate-300'
+            }`}
+          >
+            All
+          </button>
+          {RISK_FILTERS.map((f) => (
             <button
-              key={mode}
-              onClick={() => setBasemap(mode)}
-              className={`px-2 py-0.5 rounded capitalize transition ${
-                basemap === mode ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'
+              key={f.value}
+              onClick={() => setFilterAnomaly(f.value)}
+              className={`px-2 py-1 rounded-md font-bold transition border ${
+                filterAnomaly === f.value
+                  ? 'border-transparent bg-white dark:bg-slate-700 shadow-sm ring-1 ring-slate-400'
+                  : 'border-transparent bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 hover:bg-white/80'
               }`}
             >
-              {mode}
+              {f.label}
             </button>
           ))}
         </div>

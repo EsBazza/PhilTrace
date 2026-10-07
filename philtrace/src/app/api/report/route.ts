@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rate limiting: check phone per project
-    const phoneCount = await prisma.comment.count({
-      where: { projectId, text: { not: '' } },
+    // Rate limiting: check phone per project using used OTPs
+    const phoneCount = await prisma.otpCode.count({
+      where: { projectId, phone, used: true },
     });
 
     // Check per-project phone limit

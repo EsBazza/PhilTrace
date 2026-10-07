@@ -326,49 +326,103 @@ export default function PhilippinesMap({ stats, getColor }: PhilippinesMapProps)
     const map = mapRef.current;
     if (!map || !isLoaded) return;
 
-    // Clear old markers
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+    if (!showPins) {
+      if (map.getLayer('project-pins-circles')) {
+        map.setLayoutProperty('project-pins-circles', 'visibility', 'none');
+      }
+      return;
+    }
 
-    if (!showPins) return;
+    if (map.getLayer('project-pins-circles')) {
+      map.setLayoutProperty('project-pins-circles', 'visibility', 'visible');
+      // If we want to skip refetching, we can return here. But it's okay to fetch on toggle if data might change.
+      // We'll proceed to fetch to keep it simple and ensure data is fresh.
+    }
 
     fetch('/api/projects?limit=150&sort=budgetPHP&order=desc')
       .then((res) => (res.ok ? res.json() : null))
       .then((pData) => {
         if (!pData?.projects) return;
 
-        for (const p of pData.projects) {
-          if (!p.gpsLat || !p.gpsLng) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const features = pData.projects
+          .filter((p: any) => p.gpsLat && p.gpsLng)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => ({
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [p.gpsLng, p.gpsLat],
+            },
+            properties: {
+              id: p.id,
+              name: p.name,
+              budgetPHP: p.budgetPHP,
+              progress: p.progress,
+              provinceName: p.province?.name || 'DPWH Project',
+              isFlagged: p.flagOverdue || p.flagOverpaid,
+            },
+          }));
 
-          const el = document.createElement('div');
-          el.className = 'marker-pin group';
-          el.style.width = '12px';
-          el.style.height = '12px';
-          el.style.borderRadius = '50%';
-          el.style.backgroundColor =
-            p.flagOverdue || p.flagOverpaid
-              ? '#ef4444'
-              : '#10b981';
-          el.style.border = '2px solid white';
-          el.style.boxShadow = '0 0 8px rgba(0,0,0,0.6)';
-          el.style.cursor = 'pointer';
+        if (!map.getSource('project-pins')) {
+          map.addSource('project-pins', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features },
+          });
 
-          const popup = new mapboxgl.Popup({ offset: 12, closeButton: false }).setHTML(`
-            <div style="font-family: sans-serif; padding: 6px; max-width: 230px;">
-              <div style="font-size: 9px; font-weight: 800; color: #6b7280; text-transform: uppercase;">${p.province?.name || 'DPWH Project'}</div>
-              <div style="font-size: 11px; font-weight: bold; margin-top: 2px; color: #111827; line-height: 1.3;">${p.name.slice(0, 70)}...</div>
-              <div style="font-size: 11px; margin-top: 4px; color: #374151;"><strong>Budget:</strong> ${formatCurrency(p.budgetPHP)}</div>
-              <div style="font-size: 11px; color: #374151;"><strong>Progress:</strong> ${p.progress.toFixed(1)}%</div>
-              <a href="/projects/${p.id}" style="display: inline-block; margin-top: 6px; font-size: 11px; color: #2563eb; font-weight: 700; text-decoration: none;">Investigate Contract &rarr;</a>
-            </div>
-          `);
+          map.addLayer({
+            id: 'project-pins-circles',
+            type: 'circle',
+            source: 'project-pins',
+            paint: {
+              'circle-radius': 6,
+              'circle-color': [
+                'case',
+                ['boolean', ['get', 'isFlagged'], false],
+                '#ef4444',
+                '#10b981',
+              ],
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff',
+            },
+          });
 
-          const marker = new mapboxgl.Marker(el)
-            .setLngLat([p.gpsLng, p.gpsLat])
-            .setPopup(popup)
-            .addTo(map);
+          map.on('click', 'project-pins-circles', (e) => {
+            if (!e.features || e.features.length === 0) return;
+            const p = e.features[0].properties as any;
+            const coordinates = (e.features[0].geometry as any).coordinates.slice();
 
-          markersRef.current.push(marker);
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+              coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            }
+
+            const popupHtml = `
+              <div style="font-family: sans-serif; padding: 6px; max-width: 230px;">
+                <div style="font-size: 9px; font-weight: 800; color: #6b7280; text-transform: uppercase;">${p.provinceName}</div>
+                <div style="font-size: 11px; font-weight: bold; margin-top: 2px; color: #111827; line-height: 1.3;">${p.name.slice(0, 70)}...</div>
+                <div style="font-size: 11px; margin-top: 4px; color: #374151;"><strong>Budget:</strong> ${formatCurrency(p.budgetPHP)}</div>
+                <div style="font-size: 11px; color: #374151;"><strong>Progress:</strong> ${Number(p.progress).toFixed(1)}%</div>
+                <a href="/projects/${p.id}" style="display: inline-block; margin-top: 6px; font-size: 11px; color: #2563eb; font-weight: 700; text-decoration: none;">Investigate Contract &rarr;</a>
+              </div>
+            `;
+
+            new mapboxgl.Popup({ offset: 12, closeButton: false })
+              .setLngLat(coordinates as [number, number])
+              .setHTML(popupHtml)
+              .addTo(map);
+          });
+
+          map.on('mouseenter', 'project-pins-circles', () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+          map.on('mouseleave', 'project-pins-circles', () => {
+            map.getCanvas().style.cursor = '';
+          });
+        } else {
+          (map.getSource('project-pins') as mapboxgl.GeoJSONSource).setData({
+            type: 'FeatureCollection',
+            features,
+          });
         }
       })
       .catch((err) => console.error('Error adding pins:', err));

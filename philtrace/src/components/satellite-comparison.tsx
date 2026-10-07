@@ -27,22 +27,7 @@ interface WaybackItem {
   hasCoverage: boolean;
 }
 
-// Curated reliable ESRI Wayback releases per year (from Wayback Catalog)
-const WAYBACK_YEAR_CATALOG: Record<number, { itemId: string; date: string }> = {
-  2014: { itemId: '109', date: '2014-02-20' },
-  2015: { itemId: '124', date: '2015-01-28' },
-  2016: { itemId: '177', date: '2016-01-20' },
-  2017: { itemId: '233', date: '2017-01-25' },
-  2018: { itemId: '1099', date: '2018-01-31' },
-  2019: { itemId: '2093', date: '2019-01-30' },
-  2020: { itemId: '3023', date: '2020-01-29' },
-  2021: { itemId: '4038', date: '2021-01-27' },
-  2022: { itemId: '5047', date: '2022-01-26' },
-  2023: { itemId: '6059', date: '2023-01-25' },
-  2024: { itemId: '7085', date: '2024-01-24' },
-  2025: { itemId: '8112', date: '2025-01-22' },
-  2026: { itemId: '9120', date: '2026-01-21' },
-};
+import { ESRI_WAYBACK_CATALOG } from '@/lib/constants';
 
 export default function SatelliteComparison({
   lat,
@@ -99,21 +84,21 @@ export default function SatelliteComparison({
         const years: WaybackItem[] = [];
         if (res.ok) {
           // Generate items from catalog
-          Object.entries(WAYBACK_YEAR_CATALOG).forEach(([y, data]) => {
+          Object.entries(ESRI_WAYBACK_CATALOG).forEach(([y, data]) => {
             const yr = parseInt(y, 10);
             years.push({
               year: yr,
-              releaseDate: data.date,
+              releaseDate: data.releaseDate,
               itemId: data.itemId,
               hasCoverage: true,
             });
           });
         } else {
           // Fallback to default catalog entries
-          Object.entries(WAYBACK_YEAR_CATALOG).forEach(([y, data]) => {
+          Object.entries(ESRI_WAYBACK_CATALOG).forEach(([y, data]) => {
             years.push({
               year: parseInt(y, 10),
-              releaseDate: data.date,
+              releaseDate: data.releaseDate,
               itemId: data.itemId,
               hasCoverage: true,
             });
@@ -130,9 +115,9 @@ export default function SatelliteComparison({
           console.warn('Wayback catalog check timed out or failed, using local catalog fallback');
         }
         // Fallback to local catalog
-        const fallback: WaybackItem[] = Object.entries(WAYBACK_YEAR_CATALOG).map(([y, d]) => ({
+        const fallback: WaybackItem[] = Object.entries(ESRI_WAYBACK_CATALOG).map(([y, d]) => ({
           year: parseInt(y, 10),
-          releaseDate: d.date,
+          releaseDate: d.releaseDate,
           itemId: d.itemId,
           hasCoverage: true,
         }));
@@ -152,7 +137,7 @@ export default function SatelliteComparison({
   }, [lat, lng]);
 
   const getTileUrl = useCallback((year: number) => {
-    const item = WAYBACK_YEAR_CATALOG[year] || WAYBACK_YEAR_CATALOG[2024];
+    const item = ESRI_WAYBACK_CATALOG[year] || ESRI_WAYBACK_CATALOG[2024];
     return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${item.itemId}/{z}/{y}/{x}`;
   }, []);
 

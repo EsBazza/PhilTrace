@@ -32,7 +32,7 @@ export function useMapInstance(
 
     const map = new mapboxgl.Map({
       container,
-      style: BASEMAP_STYLES[basemap] || BASEMAP_STYLES.satellite,
+      style: BASEMAP_STYLES['satellite'], // Default style on init
       center: [122.0, 12.8],
       zoom: 5.8,
       minZoom: 4.8,
@@ -58,7 +58,14 @@ export function useMapInstance(
       mapRef.current = null;
       setIsMapLoaded(false);
     };
-  }, [basemap, containerRef]);
+  }, [containerRef]);
+
+  // Update map style when basemap changes, without destroying instance
+  useEffect(() => {
+    if (mapRef.current && isMapLoaded) {
+      mapRef.current.setStyle(BASEMAP_STYLES[basemap] || BASEMAP_STYLES.satellite);
+    }
+  }, [basemap, isMapLoaded]);
 
   const flyTo = useCallback(
     (center: [number, number], zoom: number, padding?: mapboxgl.PaddingOptions) => {
