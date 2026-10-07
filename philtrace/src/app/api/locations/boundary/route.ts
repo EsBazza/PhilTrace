@@ -58,6 +58,7 @@ export async function GET(req: Request) {
 
     const geoDir = path.join(process.cwd(), 'public', 'geo');
     let targetFilePath = '';
+    let boundaryFeature: any = null;
 
     if (file) {
       const possibleDirs = ['raw_region', 'raw_province', 'raw_city', 'raw_barangay'];
@@ -69,46 +70,38 @@ export async function GET(req: Request) {
         }
       }
     } else if (type === 'region') {
-      const rDir = path.join(geoDir, 'raw_region');
-      if (fs.existsSync(rDir)) {
-        const files = fs.readdirSync(rDir);
+      const p = path.join(geoDir, 'regions.json');
+      if (fs.existsSync(p)) {
+        const d = JSON.parse(fs.readFileSync(p, 'utf8'));
         const nameLower = name.toLowerCase().trim();
-
-        for (const f of files) {
-          const d = JSON.parse(fs.readFileSync(path.join(rDir, f), 'utf8'));
-          const regName = (d.properties?.region_name || '').toLowerCase().trim();
-          if (
-            regName === nameLower ||
+        const feat = d.features.find((f: any) => {
+          const regName = (f.properties?.region_name || f.properties?.name || '').toLowerCase().trim();
+          return regName === nameLower ||
             regName.includes(nameLower) ||
             nameLower.includes(regName) ||
             (nameLower.includes('ncr') && regName.includes('national capital')) ||
             (nameLower.includes('car') && !nameLower.includes('caraga') && regName.includes('cordillera')) ||
             (nameLower.includes('armm') && regName.includes('muslim')) ||
-            (nameLower.includes('barmm') && regName.includes('muslim'))
-          ) {
-            targetFilePath = path.join(rDir, f);
-            break;
-          }
+            (nameLower.includes('barmm') && regName.includes('muslim'));
+        });
+        if (feat) {
+          boundaryFeature = feat;
         }
       }
     } else if (type === 'province') {
-      const pDir = path.join(geoDir, 'raw_province');
-      if (fs.existsSync(pDir)) {
-        const files = fs.readdirSync(pDir);
+      const p = path.join(geoDir, 'provinces.json');
+      if (fs.existsSync(p)) {
+        const d = JSON.parse(fs.readFileSync(p, 'utf8'));
         const nameLower = name.toLowerCase().trim();
-
-        for (const f of files) {
-          const d = JSON.parse(fs.readFileSync(path.join(pDir, f), 'utf8'));
-          const provName = (d.properties?.province_name || '').toLowerCase().trim();
-          if (
-            provName === nameLower ||
+        const feat = d.features.find((f: any) => {
+          const provName = (f.properties?.province_name || f.properties?.name || '').toLowerCase().trim();
+          return provName === nameLower ||
             provName.includes(nameLower) ||
             nameLower.includes(provName) ||
-            (nameLower.includes('manila') && provName.includes('manila'))
-          ) {
-            targetFilePath = path.join(pDir, f);
-            break;
-          }
+            (nameLower.includes('manila') && provName.includes('manila'));
+        });
+        if (feat) {
+          boundaryFeature = feat;
         }
       }
     } else if (type === 'city') {
@@ -150,7 +143,11 @@ export async function GET(req: Request) {
       }
     }
 
-    if (!targetFilePath || !fs.existsSync(targetFilePath)) {
+    if (!boundaryFeature && targetFilePath && fs.existsSync(targetFilePath)) {
+      boundaryFeature = JSON.parse(fs.readFileSync(targetFilePath, 'utf8'));
+    }
+
+    if (!boundaryFeature) {
       return Response.json({
         boundary: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [] } },
         mask: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [WORLD_RING] } },
@@ -159,17 +156,16 @@ export async function GET(req: Request) {
       });
     }
 
-    const rawData = JSON.parse(fs.readFileSync(targetFilePath, 'utf8'));
-    const bounds = getBBox(rawData.geometry);
+    const bounds = getBBox(boundaryFeature.geometry);
     const center: [number, number] = [
       +((bounds[0][0] + bounds[1][0]) / 2).toFixed(5),
       +((bounds[0][1] + bounds[1][1]) / 2).toFixed(5),
     ];
-    const mask = createInvertedMask(rawData.geometry);
+    const mask = createInvertedMask(boundaryFeature.geometry);
 
     return Response.json(
       {
-        boundary: rawData,
+        boundary: boundaryFeature,
         mask,
         bounds,
         center,

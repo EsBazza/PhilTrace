@@ -47,9 +47,7 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
 
   // PDF verification & Wayback fallback
   const rawPdfUrl = project.contractDocument?.sourcePdfUrl || '';
-  const [verifiedPdfUrl, setVerifiedPdfUrl] = useState<string>(rawPdfUrl);
-  const [isWaybackArchived, setIsWaybackArchived] = useState<boolean>(false);
-  const [isCheckingPdf, setIsCheckingPdf] = useState<boolean>(false);
+
 
   // 1. Fetch BOQ Items & Benchmarks
   useEffect(() => {
@@ -79,63 +77,8 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
     return () => controller.abort();
   }, [project.id]);
 
-  // 2. Pre-flight check PDF URL and fallback to Wayback Machine CDX API
-  useEffect(() => {
-    if (!rawPdfUrl) return;
-
-    let isMounted = true;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-    async function verifyPdf() {
-      setIsCheckingPdf(true);
-      try {
-        // Attempt HEAD request
-        const res = await fetch(rawPdfUrl, {
-          method: 'HEAD',
-          signal: controller.signal,
-        });
-
-        if (res.ok && isMounted) {
-          setVerifiedPdfUrl(rawPdfUrl);
-          setIsWaybackArchived(false);
-          return;
-        }
-      } catch {
-        // Direct request failed or timed out, query Wayback Machine
-      }
-
-      try {
-        const waybackRes = await fetch(
-          `https://archive.org/wayback/available?url=${encodeURIComponent(rawPdfUrl)}`,
-          { signal: controller.signal }
-        );
-
-        if (waybackRes.ok && isMounted) {
-          const waybackData = await waybackRes.json();
-          const closest = waybackData.archived_snapshots?.closest;
-          if (closest && closest.available && closest.url) {
-            setVerifiedPdfUrl(closest.url);
-            setIsWaybackArchived(true);
-            return;
-          }
-        }
-      } catch {
-        // Fallback check error
-      } finally {
-        clearTimeout(timeoutId);
-        if (isMounted) setIsCheckingPdf(false);
-      }
-    }
-
-    verifyPdf();
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [rawPdfUrl]);
+  // Use the raw PDF URL directly without stalled async verification
+  const verifiedPdfUrl = rawPdfUrl;
 
   return (
     <div className="space-y-8">
@@ -240,34 +183,37 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
             <FileText className="h-5 w-5 text-cyan-400" />
             <div>
               <h3 className="text-base font-bold text-white">Official Scanned Contract Document</h3>
-              {isWaybackArchived && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 font-medium">
-                  <Archive className="h-3 w-3" />
-                  <span>Serving verified copy from Internet Archive Wayback Machine</span>
-                </span>
-              )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href={`https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-900/50"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>DPWH Transparency Portal ↗</span>
+            </a>
+            <a
+              href={`https://www.dpwh.gov.ph/dpwh/business/procurement/civil-works/contract/${encodeURIComponent(project.id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Civil Works Registry ↗</span>
+            </a>
             {verifiedPdfUrl && (
               <>
                 <a
                   href={verifiedPdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-900/50"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  <span>Open Full PDF ↗</span>
-                </a>
-                <a
-                  href={verifiedPdfUrl}
                   download
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/50"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
+                  <span>Download Original DPWH Contract</span>
                 </a>
               </>
             )}

@@ -1,19 +1,21 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import {
   BrainCircuit,
   TrendingUp,
   AlertTriangle,
   Building2,
-  Newspaper,
   Satellite,
   ExternalLink,
   FileQuestion,
-  CheckCircle2,
 } from 'lucide-react';
-import { formatCurrency, formatDate, cleanContractorName } from '@/lib/format';
+import { formatCurrency, cleanContractorName } from '@/lib/format';
 import { ProjectDetailData } from '@/hooks/use-projects';
+import { ESRI_WAYBACK_CATALOG } from '@/lib/constants';
 
 interface OverviewTabProps {
   project: ProjectDetailData;
@@ -27,6 +29,47 @@ export default function OverviewTab({ project, onNavigateTab }: OverviewTabProps
   const progressPct = Math.round(project.progress || 0);
   const gapPct = disbursementPct - progressPct;
   const isHighGap = gapPct >= 30;
+
+  const mapContainer = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mapContainer.current || !project.gpsLat || !project.gpsLng) return;
+
+    mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+    const item = ESRI_WAYBACK_CATALOG[2024] || Object.values(ESRI_WAYBACK_CATALOG)[0];
+    const tileUrl = `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${item.m}/{z}/{y}/{x}`;
+
+    const map = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: {
+        version: 8,
+        sources: {
+          'esri-wayback': {
+            type: 'raster',
+            tiles: [tileUrl],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: 'wayback-layer',
+            type: 'raster',
+            source: 'esri-wayback',
+          },
+        ],
+      },
+      center: [project.gpsLng, project.gpsLat],
+      zoom: 16,
+      interactive: true,
+      attributionControl: false,
+    });
+
+    new mapboxgl.Marker({ color: '#f59e0b' })
+      .setLngLat([project.gpsLng, project.gpsLat])
+      .addTo(map);
+
+    return () => map.remove();
+  }, [project.gpsLat, project.gpsLng]);
 
   return (
     <div className="space-y-6">
@@ -157,33 +200,35 @@ export default function OverviewTab({ project, onNavigateTab }: OverviewTabProps
         </div>
 
         {/* Mini Satellite Thumbnail */}
-        <div
-          onClick={() => onNavigateTab('satellite')}
-          className="group cursor-pointer rounded-xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col justify-between transition hover:border-cyan-500/40 hover:bg-slate-900/80"
-        >
-          <div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col justify-between transition group">
+          <div className="p-5 pb-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Satellite className="h-4 w-4 text-cyan-400" />
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Satellite Ground-Truth
+                  Live Satellite Ground-Truth
                 </h4>
               </div>
               <span className="rounded bg-cyan-950/60 px-2 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-800">
                 ESRI Wayback
               </span>
             </div>
-            <p className="text-sm font-semibold text-slate-200">
-              Inspect site changes over time (Start vs Present)
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              Cross-reference official DPWH completion claims against time-series satellite photography.
-            </p>
+          </div>
+          
+          <div className="relative h-40 w-full bg-slate-900">
+            <div ref={mapContainer} className="h-full w-full" />
+            <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400 border border-slate-800 z-10">
+              Target: {project.gpsLat?.toFixed(4) || 'N/A'}, {project.gpsLng?.toFixed(4) || 'N/A'}
+            </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-cyan-400 font-semibold group-hover:text-cyan-300">
-            <span>Open Split-Screen Comparison</span>
-            <span>→</span>
+          <div className="p-3 bg-slate-900/80 border-t border-slate-800">
+            <button
+              onClick={() => onNavigateTab('satellite')}
+              className="w-full py-1.5 rounded bg-cyan-900/40 text-xs font-bold text-cyan-400 hover:bg-cyan-900/60 hover:text-cyan-300 transition border border-cyan-800/50"
+            >
+              Open Full Split-Screen Comparison →
+            </button>
           </div>
         </div>
       </div>

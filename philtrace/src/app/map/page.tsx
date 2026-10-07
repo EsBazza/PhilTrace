@@ -42,6 +42,7 @@ function MapContent() {
   // Choropleth data
   const [choroplethData, setChoroplethData] = useState<ChoroplethStat[]>([]);
   const [provinceGeoJson, setProvinceGeoJson] = useState<any>(null);
+  const [regionGeoJson, setRegionGeoJson] = useState<any>(null);
 
   // Sidebar projects
   const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
@@ -77,7 +78,7 @@ function MapContent() {
       .catch(console.error);
   }, [selectedProjectId, isMapLoaded, mapRef, flyTo]);
 
-  // ─── Load choropleth + province boundaries ────────────────
+  // ─── Load choropleth + province & region boundaries ────────────────
   useEffect(() => {
     fetch('/api/map/choropleth')
       .then((res) => (res.ok ? res.json() : null))
@@ -87,6 +88,11 @@ function MapContent() {
     fetch('/geo/provinces.json')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setProvinceGeoJson(data); })
+      .catch(console.error);
+
+    fetch('/geo/regions.json')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setRegionGeoJson(data); })
       .catch(console.error);
   }, []);
 
@@ -539,11 +545,13 @@ function MapContent() {
   // ─── Province Choropleth (zoom 5-7.5) ─────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !isMapLoaded || !provinceGeoJson) return;
+    if (!map || !isMapLoaded || !provinceGeoJson || !regionGeoJson) return;
 
     if (map.getLayer('province-choropleth-layer')) map.removeLayer('province-choropleth-layer');
     if (map.getLayer('province-borders-layer')) map.removeLayer('province-borders-layer');
     if (map.getSource('province-source')) map.removeSource('province-source');
+    if (map.getLayer('region-borders-layer')) map.removeLayer('region-borders-layer');
+    if (map.getSource('region-source')) map.removeSource('region-source');
 
     const countMap = new Map<string, number>();
     choroplethData.forEach((stat) => {
@@ -586,14 +594,29 @@ function MapContent() {
       id: 'province-borders-layer',
       type: 'line',
       source: 'province-source',
-      maxzoom: 7.5,
       paint: {
         'line-color': '#ffffff',
         'line-width': 0.8,
-        'line-opacity': 0.35,
+        'line-opacity': 0.45,
       },
     });
-  }, [isMapLoaded, provinceGeoJson, choroplethData, mapRef]);
+
+    map.addSource('region-source', {
+      type: 'geojson',
+      data: regionGeoJson,
+    });
+
+    map.addLayer({
+      id: 'region-borders-layer',
+      type: 'line',
+      source: 'region-source',
+      paint: {
+        'line-color': '#38bdf8',
+        'line-width': 1.5,
+        'line-opacity': 0.65,
+      },
+    });
+  }, [isMapLoaded, provinceGeoJson, regionGeoJson, choroplethData, mapRef]);
 
   // ─── Update Boundary Outline & Inverted Dark Mask ──────────
   useEffect(() => {

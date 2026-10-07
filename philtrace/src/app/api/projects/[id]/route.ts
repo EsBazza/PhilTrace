@@ -119,6 +119,12 @@ async function fallbackIngestFromGeo(id: string) {
       },
     });
 
+    if (!newProject.contractDocument) {
+      (newProject as any).contractDocument = {
+        sourcePdfUrl: `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(id)}`,
+      };
+    }
+
     return newProject;
   } catch (err) {
     console.error('Error during fallback project ingestion:', err);
@@ -193,6 +199,9 @@ export async function GET(
           id: project.province?.region?.id || '',
           name: resolvedRegion || project.province?.region?.name || '',
         },
+      },
+      contractDocument: project.contractDocument || {
+        sourcePdfUrl: `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(id)}`,
       },
     };
 

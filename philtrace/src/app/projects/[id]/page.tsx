@@ -41,7 +41,6 @@ export default function ProjectDossierPage({ params }: PageProps) {
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [copied, setCopied] = useState<boolean>(false);
-  const [isVerifyingPdf, setIsVerifyingPdf] = useState<boolean>(false);
 
   // Sync with URL hash if provided
   useEffect(() => {
@@ -73,48 +72,6 @@ export default function ProjectDossierPage({ params }: PageProps) {
       await navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
-  const handleViewFullContract = async () => {
-    const rawPdf = project?.contractDocument?.sourcePdfUrl;
-    if (!rawPdf) {
-      handleTabChange('financials');
-      return;
-    }
-
-    setIsVerifyingPdf(true);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    let targetUrl = rawPdf;
-
-    try {
-      const headRes = await fetch(rawPdf, { method: 'HEAD', signal: controller.signal });
-      if (!headRes.ok) {
-        throw new Error('HEAD check failed');
-      }
-    } catch {
-      // Fallback to Wayback Machine CDX API
-      try {
-        const waybackRes = await fetch(
-          `https://archive.org/wayback/available?url=${encodeURIComponent(rawPdf)}`,
-          { signal: controller.signal }
-        );
-        if (waybackRes.ok) {
-          const wbData = await waybackRes.json();
-          const closest = wbData.archived_snapshots?.closest;
-          if (closest && closest.available && closest.url) {
-            targetUrl = closest.url;
-          }
-        }
-      } catch {
-        // Use raw URL as ultimate fallback
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      setIsVerifyingPdf(false);
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -297,15 +254,27 @@ export default function ProjectDossierPage({ params }: PageProps) {
 
           {/* Action Buttons Bar */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
-            <button
-              onClick={handleViewFullContract}
-              disabled={isVerifyingPdf}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition disabled:opacity-50"
+            <a
+              href={project.contractDocument?.sourcePdfUrl || `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition"
             >
               <FileText className="h-4 w-4" />
-              <span>{isVerifyingPdf ? 'Validating Link...' : 'View Full Contract'}</span>
+              <span>View Full Contract</span>
               <ExternalLink className="h-3 w-3" />
-            </button>
+            </a>
+
+            <a
+              href={`https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
+            >
+              <Building2 className="h-4 w-4 text-cyan-400" />
+              <span>DPWH Transparency Portal</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
 
             <button
               onClick={handleShare}

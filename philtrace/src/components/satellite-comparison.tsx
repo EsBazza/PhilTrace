@@ -23,7 +23,7 @@ interface SatelliteComparisonProps {
 interface WaybackItem {
   year: number;
   releaseDate: string;
-  itemId: string;
+  m: string;
   hasCoverage: boolean;
 }
 
@@ -89,7 +89,7 @@ export default function SatelliteComparison({
             years.push({
               year: yr,
               releaseDate: data.releaseDate,
-              itemId: data.itemId,
+              m: data.m,
               hasCoverage: true,
             });
           });
@@ -99,7 +99,7 @@ export default function SatelliteComparison({
             years.push({
               year: parseInt(y, 10),
               releaseDate: data.releaseDate,
-              itemId: data.itemId,
+              m: data.m,
               hasCoverage: true,
             });
           });
@@ -118,7 +118,7 @@ export default function SatelliteComparison({
         const fallback: WaybackItem[] = Object.entries(ESRI_WAYBACK_CATALOG).map(([y, d]) => ({
           year: parseInt(y, 10),
           releaseDate: d.releaseDate,
-          itemId: d.itemId,
+          m: d.m,
           hasCoverage: true,
         }));
         setAvailableYears(fallback);
@@ -138,7 +138,7 @@ export default function SatelliteComparison({
 
   const getTileUrl = useCallback((year: number) => {
     const item = ESRI_WAYBACK_CATALOG[year] || ESRI_WAYBACK_CATALOG[2024];
-    return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${item.itemId}/{z}/{y}/{x}`;
+    return `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${item.m}/{z}/{y}/{x}`;
   }, []);
 
   // 2. Initialize Left Map (Baseline Start Year)
@@ -183,9 +183,11 @@ export default function SatelliteComparison({
     });
 
     map.on('error', (e: unknown) => {
-      const err = e as { sourceId?: string; error?: unknown };
+      const err = e as { sourceId?: string; error?: { status?: number; message?: string } };
       if (err?.sourceId === 'wayback-source-left') {
-        setLeftTileError(true);
+        if (err?.error?.status === 404 || err?.error?.message?.includes('failed to load')) {
+          setLeftTileError(true);
+        }
       }
     });
 
@@ -239,9 +241,11 @@ export default function SatelliteComparison({
     });
 
     map.on('error', (e: unknown) => {
-      const err = e as { sourceId?: string; error?: unknown };
+      const err = e as { sourceId?: string; error?: { status?: number; message?: string } };
       if (err?.sourceId === 'wayback-source-right') {
-        setRightTileError(true);
+        if (err?.error?.status === 404 || err?.error?.message?.includes('failed to load')) {
+          setRightTileError(true);
+        }
       }
     });
 
