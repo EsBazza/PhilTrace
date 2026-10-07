@@ -5,7 +5,16 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useContractorGraph, useContractors } from '@/hooks/use-projects';
 import { formatCurrency } from '@/lib/format';
-import SigmaNetwork from '@/components/contractors/sigma-network';
+import dynamic from 'next/dynamic';
+
+const SigmaNetwork = dynamic(() => import('@/components/contractors/sigma-network'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center text-slate-400 text-sm">
+      Initializing WebGL Bipartite Graph...
+    </div>
+  ),
+});
 
 interface ContractorNodeData {
   id: string;
