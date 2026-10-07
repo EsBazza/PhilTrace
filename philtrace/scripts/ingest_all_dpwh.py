@@ -57,6 +57,7 @@ total_rows = table.num_rows
 print(f"Loaded {total_rows:,} records from parquet.")
 
 df = table.to_pandas()
+df = df.sort_values(by=['infraYear', 'budget'], ascending=[False, False])
 
 print("Preparing batch data with anomaly calculations...")
 now = datetime.now()
@@ -91,6 +92,9 @@ insert_sql = """
 
 start_time = time.time()
 
+import math
+# Ensure math is imported
+
 for idx, row in df.iterrows():
     cid = str(row.get('contractId') or '').strip()
     if not cid:
@@ -104,6 +108,13 @@ for idx, row in df.iterrows():
     if isinstance(loc, dict):
         prov_str = loc.get('province', '')
         reg_str = loc.get('region', '')
+    elif isinstance(loc, (list, tuple)):
+        try:
+            loc_dict = dict(loc)
+            prov_str = loc_dict.get('province', '')
+            reg_str = loc_dict.get('region', '')
+        except:
+            prov_str = str(loc)
     elif isinstance(loc, str):
         try:
             loc_dict = json.loads(loc)
@@ -116,28 +127,33 @@ for idx, row in df.iterrows():
     
     try:
         lat = float(row.get('latitude') or 14.5995)
+        if math.isnan(lat): lat = 14.5995
     except:
         lat = 14.5995
     try:
         lng = float(row.get('longitude') or 120.9842)
+        if math.isnan(lng): lng = 120.9842
     except:
         lng = 120.9842
     try:
         budget = float(row.get('budget') or 0.0)
+        if math.isnan(budget): budget = 0.0
     except:
         budget = 0.0
     try:
         paid = float(row.get('amountPaid') or 0.0)
+        if math.isnan(paid): paid = 0.0
     except:
         paid = 0.0
     try:
         progress = float(row.get('progress') or 0.0)
+        if math.isnan(progress): progress = 0.0
     except:
         progress = 0.0
 
     s_date_raw = row.get('startDate')
     try:
-        if s_date_raw and str(s_date_raw) != 'None' and str(s_date_raw) != 'nan':
+        if s_date_raw and str(s_date_raw) not in ('None', 'nan', 'NaT'):
             s_date = datetime.strptime(str(s_date_raw)[:10], "%Y-%m-%d")
         else:
             s_date = now
@@ -146,7 +162,7 @@ for idx, row in df.iterrows():
 
     c_date_raw = row.get('completionDate')
     try:
-        if c_date_raw and str(c_date_raw) != 'None' and str(c_date_raw) != 'nan':
+        if c_date_raw and str(c_date_raw) not in ('None', 'nan', 'NaT'):
             c_date = datetime.strptime(str(c_date_raw)[:10], "%Y-%m-%d")
         else:
             c_date = None
@@ -156,6 +172,8 @@ for idx, row in df.iterrows():
     status = str(row.get('status') or 'On-Going')[:50]
     category = str(row.get('category') or 'Roads')[:50]
     contractor = str(row.get('contractor') or 'Unassigned Contractor')[:255]
+    if not contractor or contractor in ('None', 'nan'):
+        contractor = 'Unassigned Contractor'
     source_funds = str(row.get('sourceOfFunds') or '')[:100] if row.get('sourceOfFunds') else None
     prog_name = str(row.get('programName') or '')[:255] if row.get('programName') else None
     infra_yr = str(row.get('infraYear') or '')[:10] if row.get('infraYear') else None

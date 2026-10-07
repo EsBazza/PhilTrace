@@ -43,3 +43,6 @@ next-env.d.ts
 
 # raw geojson archives
 public/geo/raw_*
+
+# datasets
+*.parquet
