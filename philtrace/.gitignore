@@ -43,6 +43,7 @@ next-env.d.ts
 
 # raw geojson archives
 public/geo/raw_*
+public/geo/2023/municities/
 
 # datasets
 *.parquet

@@ -143,42 +143,54 @@ function MapContent() {
 
   // ─── Load barangays geojson when municipality selected ────────
   useEffect(() => {
-    if (!drillDown.municipality || !muniLookup) {
+    if (!drillDown.municipality) {
       setBarangaysGeoJson(null);
       return;
     }
     const muniName = drillDown.municipality.toLowerCase().trim();
     let muniPsgc = '';
-    if (muniLookup[muniName]) {
-      muniPsgc = muniLookup[muniName].psgc;
-    } else if (drillDown.cityFile) {
+    if (muniLookup && muniLookup[muniName]) {
+      muniPsgc = String(muniLookup[muniName].psgc);
+    } else if (drillDown.cityFile && muniLookup) {
       const parts = drillDown.cityFile.replace('.any.geo.json', '').replace('.geo.json', '').split('.');
       const muniPart = parts[parts.length - 1];
       if (muniPart) {
         const query = muniPart.replace(/-/g, ' ').toLowerCase().trim();
-        if (muniLookup[query]) muniPsgc = muniLookup[query].psgc;
-        else {
-           const keys = Object.keys(muniLookup);
-           for (const k of keys) {
-             if (k === query || k.includes(query) || query.includes(k)) {
-               muniPsgc = muniLookup[k].psgc;
-               break;
-             }
-           }
+        if (muniLookup[query]) {
+          muniPsgc = String(muniLookup[query].psgc);
+        } else {
+          const keys = Object.keys(muniLookup);
+          for (const k of keys) {
+            if (k === query || k.includes(query) || query.includes(k)) {
+              muniPsgc = String(muniLookup[k].psgc);
+              break;
+            }
+          }
         }
       }
     }
-    if (muniPsgc) {
-      fetch(`/api/locations/barangays?cityPsgc=${muniPsgc}&municipality=${encodeURIComponent(drillDown.municipality)}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.geojson) {
-            setBarangaysGeoJson(data.geojson);
-          }
-        })
-        .catch(console.error);
-    }
-  }, [drillDown.municipality, drillDown.cityFile, muniLookup]);
+
+    const params = new URLSearchParams({
+      municipality: drillDown.municipality,
+    });
+    if (muniPsgc) params.set('cityPsgc', muniPsgc);
+    if (drillDown.cityFile) params.set('cityFile', drillDown.cityFile);
+    if (drillDown.province) params.set('province', drillDown.province);
+
+    fetch(`/api/locations/barangays?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.geojson) {
+          setBarangaysGeoJson(data.geojson);
+        } else {
+          setBarangaysGeoJson(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load barangays geojson:', err);
+        setBarangaysGeoJson(null);
+      });
+  }, [drillDown.municipality, drillDown.province, drillDown.cityFile, muniLookup]);
 
   // ─── Render clusters from Supercluster → Mapbox ──────────
   const renderClusters = useCallback(async () => {
@@ -299,8 +311,8 @@ function MapContent() {
             10000, 46,
             40000, 56,
           ],
-          'circle-opacity': 0.35,
-          'circle-blur': 0.4,
+          'circle-opacity': 0.45,
+          'circle-blur': 0.3,
         },
       });
 
@@ -339,8 +351,8 @@ function MapContent() {
             10000, 36,
             40000, 44,
           ],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': 'rgba(255, 255, 255, 0.9)',
           'circle-opacity': 0.95,
         },
       });
@@ -362,7 +374,7 @@ function MapContent() {
             ['concat', ['to-string', ['/', ['round', ['*', ['/', ['get', 'totalProjects'], 1000], 10]], 10]], 'k'],
             ['to-string', ['round', ['get', 'totalProjects']]],
           ],
-          'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
           'text-size': 13,
           'text-allow-overlap': true,
         },
@@ -574,7 +586,7 @@ function MapContent() {
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => {
         renderClusters();
-      }, 80);
+      }, 40);
     };
 
     map.on('moveend', onMoveEnd);
@@ -763,6 +775,7 @@ function MapContent() {
     });
     if (cityFile) params.set('cityFile', cityFile);
     if (drillDown.municipality) params.set('municipality', drillDown.municipality);
+    if (drillDown.province) params.set('province', drillDown.province);
 
     fetch(`/api/locations/boundary?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -782,6 +795,13 @@ function MapContent() {
             features: [data.mask],
           });
         }
+
+        if (data.bounds && Array.isArray(data.bounds) && data.bounds.length === 2) {
+          const [[minX, minY], [maxX, maxY]] = data.bounds;
+          if (!(minX === 116 && minY === 4 && maxX === 127 && maxY === 21)) {
+            fitBounds(data.bounds);
+          }
+        }
       })
       .catch((err) => {
         console.error('Failed to load boundary and mask:', err);
@@ -794,6 +814,7 @@ function MapContent() {
     drillDown.municipality,
     drillDown.cityFile,
     drillDown.barangay,
+    fitBounds,
   ]);
 
   // ─── Update sidebar when municipality/barangay changes ────

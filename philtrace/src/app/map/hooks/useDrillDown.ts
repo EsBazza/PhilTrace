@@ -97,9 +97,10 @@ export function useDrillDown(
       if (centroids?.cities) {
         const c =
           (cityFile ? centroids.cities[cityFile] : null) ||
+          (state.province ? centroids.cities[`${state.province}::${municipality}`] : null) ||
+          (state.province ? centroids.cities[`${state.province}::${municipality.toLowerCase().trim()}`] : null) ||
           centroids.cities[municipality] ||
-          centroids.cities[municipality.toLowerCase().trim()] ||
-          centroids.cities[`${state.province}::${municipality}`];
+          centroids.cities[municipality.toLowerCase().trim()];
         if (c?.bounds) {
           fitBounds(c.bounds);
           return;

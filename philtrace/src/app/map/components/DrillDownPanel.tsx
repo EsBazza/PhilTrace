@@ -77,29 +77,32 @@ export default function DrillDownPanel({
   const [loadingBarangays, setLoadingBarangays] = useState(false);
 
   useEffect(() => {
-    if (!municipality || currentCities.length === 0) {
+    if (!municipality) {
       setBarangays([]);
       return;
     }
 
     const city = currentCities.find((c) => c.name.toLowerCase() === municipality.toLowerCase());
-    if (city?.file) {
-      setLoadingBarangays(true);
-      fetch(`/api/locations/barangays?cityFile=${encodeURIComponent(city.file)}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.barangays) {
-            setBarangays(data.barangays);
-          } else {
-            setBarangays([]);
-          }
-        })
-        .catch(console.error)
-        .finally(() => setLoadingBarangays(false));
-    } else {
-      setBarangays([]);
-    }
-  }, [municipality, currentCities]);
+    setLoadingBarangays(true);
+
+    const params = new URLSearchParams({
+      municipality,
+    });
+    if (province) params.set('province', province);
+    if (city?.file) params.set('cityFile', city.file);
+
+    fetch(`/api/locations/barangays?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.barangays && Array.isArray(data.barangays)) {
+          setBarangays(data.barangays);
+        } else {
+          setBarangays([]);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingBarangays(false));
+  }, [municipality, province, currentCities]);
 
   const formatCount = (n: number) => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
