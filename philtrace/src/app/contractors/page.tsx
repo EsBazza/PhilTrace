@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useContractorGraph, useContractors } from '@/hooks/use-projects';
 import { formatCurrency } from '@/lib/format';
 import SigmaNetwork from '@/components/contractors/sigma-network';
-import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 
 interface ContractorNodeData {
   id: string;
@@ -263,7 +262,7 @@ export default function ContractorsPage() {
                     <div className="h-full w-full">
                       <SigmaNetwork 
                         graphData={graphData} 
-                        onProjectClick={(id) => setSelectedProjectId(id)}
+                        onProjectClick={(id) => router.push(`/projects/${encodeURIComponent(id)}`)}
                         onContractorClick={(data) => setSelectedContractor(data)}
                       />
                     </div>
@@ -577,7 +576,6 @@ export default function ContractorsPage() {
           &copy; {new Date().getFullYear()} MapaTunAI by UA HOW 2. All public contract metrics sourced from official DPWH disclosures &amp; verified citizen ground reports.
         </p>
       </footer>
-      <ProjectInspectionDrawer projectId={selectedProjectId} onClose={() => setSelectedProjectId(null)} />
     </div>
   );
 }

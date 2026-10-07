@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { formatCurrency } from '@/lib/format';
-import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 import DrillDownPanel from './components/DrillDownPanel';
 import ProjectSidebar from './components/ProjectSidebar';
 import { useMapInstance } from './hooks/useMapInstance';
@@ -26,6 +25,7 @@ interface ChoroplethStat {
 // ─── Main Map Content ───────────────────────────────────────
 function MapContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Basemap state
@@ -393,11 +393,13 @@ function MapContent() {
         }
       });
 
-      // Click on unclustered pin → open drawer
+      // Click on unclustered pin → take user to full page detail dossier
       map.on('click', 'unclustered-point', (e) => {
         const features = map.queryRenderedFeatures(e.point, { layers: ['unclustered-point'] });
         const projId = features[0]?.properties?.i || features[0]?.properties?.id;
-        if (projId) setSelectedProjectId(projId);
+        if (projId) {
+          router.push(`/projects/${encodeURIComponent(projId)}`);
+        }
       });
 
       // ── HOVER TOOLTIPS ──────────────────────────────────
@@ -740,19 +742,13 @@ function MapContent() {
         <ProjectSidebar
           title={drillDown.barangay || drillDown.municipality}
           projects={sidebarProjects}
-          onSelectProject={setSelectedProjectId}
+          onSelectProject={(id) => router.push(`/projects/${encodeURIComponent(id)}`)}
           onClose={() => {
             drillDown.setMunicipality('');
             drillDown.setBarangay('');
           }}
         />
       )}
-
-      {/* Project Inspection Drawer */}
-      <ProjectInspectionDrawer
-        projectId={selectedProjectId}
-        onClose={() => setSelectedProjectId(null)}
-      />
     </div>
   );
 }

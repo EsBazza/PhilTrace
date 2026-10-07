@@ -73,7 +73,7 @@ export function SearchBar() {
     setIsOpen(false);
     setQuery('');
     setSuggestions([]);
-    router.push(`/map?project=${encodeURIComponent(projectId)}`);
+    router.push(`/projects/${encodeURIComponent(projectId)}`);
   };
 
   return (

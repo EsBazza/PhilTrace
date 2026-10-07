@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useNearbyProjects, type ProjectWithRelations } from '@/hooks/use-projects';
 import { formatCurrency, formatDistance, cleanContractorName } from '@/lib/format';
 import { STATUS_COLORS, PROJECT_CATEGORIES } from '@/lib/constants';
-import ProjectInspectionDrawer from '@/components/project-inspection-drawer';
 
 interface NearbyProject extends ProjectWithRelations {
   distance: number;
@@ -88,19 +88,11 @@ export default function NearbyPage() {
   const [geoStatus, setGeoStatus] = useState<'idle' | 'locating' | 'granted' | 'denied'>('idle');
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleSelectProject = useCallback((id: string, gpsLng?: number, gpsLat?: number) => {
-    setSelectedProjectId(id);
-    if (gpsLng && gpsLat && mapRef.current) {
-      mapRef.current.flyTo({
-        center: [gpsLng, gpsLat],
-        zoom: 15.0,
-        pitch: 35,
-        duration: 1200,
-      });
-    }
-  }, []);
+  const handleSelectProject = useCallback((id: string) => {
+    router.push(`/projects/${encodeURIComponent(id)}`);
+  }, [router]);
 
   // ─── Geolocation ──────────────────────────────────────────────────────────
   const requestLocation = useCallback(() => {
@@ -250,7 +242,7 @@ export default function NearbyPage() {
       `;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        handleSelectProject(p.id, p.gpsLng, p.gpsLat);
+        handleSelectProject(p.id);
       });
       try {
         if (map.getCanvasContainer && map.getCanvasContainer()) {
@@ -410,12 +402,6 @@ export default function NearbyPage() {
               </div>
             </div>
           )}
-
-          {/* Slide-out Google Maps-style Inspection Drawer */}
-          <ProjectInspectionDrawer
-            projectId={selectedProjectId}
-            onClose={() => setSelectedProjectId(null)}
-          />
         </div>
 
         {/* ── RIGHT: Sidebar ────────────────────────────────────────── */}
@@ -479,7 +465,7 @@ export default function NearbyPage() {
                     key={project.id}
                     onMouseEnter={() => setHoveredProjectId(project.id)}
                     onMouseLeave={() => setHoveredProjectId(null)}
-                    onClick={() => handleSelectProject(project.id, project.gpsLng, project.gpsLat)}
+                    onClick={() => handleSelectProject(project.id)}
                     style={{
                       borderRadius: '12px', padding: '14px', cursor: 'pointer',
                       border: `1px solid ${isHovered ? '#00f0ff' : 'rgba(255,255,255,0.08)'}`,
