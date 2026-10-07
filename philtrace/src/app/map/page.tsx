@@ -43,6 +43,9 @@ function MapContent() {
   const [choroplethData, setChoroplethData] = useState<ChoroplethStat[]>([]);
   const [provinceGeoJson, setProvinceGeoJson] = useState<any>(null);
   const [regionGeoJson, setRegionGeoJson] = useState<any>(null);
+  const [municitiesGeoJson, setMunicitiesGeoJson] = useState<any>(null);
+  const [muniLookup, setMuniLookup] = useState<Record<string, any>>({});
+  const [barangaysGeoJson, setBarangaysGeoJson] = useState<any>(null);
 
   // Sidebar projects
   const [sidebarProjects, setSidebarProjects] = useState<any[]>([]);
@@ -78,7 +81,7 @@ function MapContent() {
       .catch(console.error);
   }, [selectedProjectId, isMapLoaded, mapRef, flyTo]);
 
-  // ─── Load choropleth + province & region boundaries ────────────────
+  // ─── Load choropleth + boundaries ────────────────
   useEffect(() => {
     fetch('/api/map/choropleth')
       .then((res) => (res.ok ? res.json() : null))
@@ -93,6 +96,16 @@ function MapContent() {
     fetch('/geo/regions.json')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setRegionGeoJson(data); })
+      .catch(console.error);
+
+    fetch('/geo/municities.json')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setMunicitiesGeoJson(data); })
+      .catch(console.error);
+
+    fetch('/geo/2023/muni_lookup.json')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setMuniLookup(data); })
       .catch(console.error);
   }, []);
 
@@ -127,6 +140,41 @@ function MapContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, drillDown.region, drillDown.province, drillDown.filterAnomaly]);
+
+  // ─── Load barangays geojson when municipality selected ────────
+  useEffect(() => {
+    if (!drillDown.municipality || !muniLookup) {
+      setBarangaysGeoJson(null);
+      return;
+    }
+    const muniName = drillDown.municipality.toLowerCase().trim();
+    let muniPsgc = '';
+    if (muniLookup[muniName]) {
+      muniPsgc = muniLookup[muniName].psgc;
+    } else if (drillDown.cityFile) {
+      const parts = drillDown.cityFile.replace('.any.geo.json', '').replace('.geo.json', '').split('.');
+      const muniPart = parts[parts.length - 1];
+      if (muniPart) {
+        const query = muniPart.replace(/-/g, ' ').toLowerCase().trim();
+        if (muniLookup[query]) muniPsgc = muniLookup[query].psgc;
+        else {
+           const keys = Object.keys(muniLookup);
+           for (const k of keys) {
+             if (k === query || k.includes(query) || query.includes(k)) {
+               muniPsgc = muniLookup[k].psgc;
+               break;
+             }
+           }
+        }
+      }
+    }
+    if (muniPsgc) {
+      fetch(`/geo/2023/municities/${muniPsgc}.json`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => setBarangaysGeoJson(data))
+        .catch(console.error);
+    }
+  }, [drillDown.municipality, drillDown.cityFile, muniLookup]);
 
   // ─── Render clusters from Supercluster → Mapbox ──────────
   const renderClusters = useCallback(async () => {
@@ -617,6 +665,58 @@ function MapContent() {
       },
     });
   }, [isMapLoaded, provinceGeoJson, regionGeoJson, choroplethData, mapRef]);
+
+  // ─── Municipality & Barangay Borders ──────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapLoaded) return;
+
+    if (map.getLayer('municipality-borders-layer')) map.removeLayer('municipality-borders-layer');
+    if (map.getSource('municities-source')) map.removeSource('municities-source');
+
+    if (municitiesGeoJson) {
+      map.addSource('municities-source', {
+        type: 'geojson',
+        data: municitiesGeoJson,
+      });
+
+      map.addLayer({
+        id: 'municipality-borders-layer',
+        type: 'line',
+        source: 'municities-source',
+        paint: {
+          'line-color': '#94a3b8',
+          'line-width': 0.6,
+          'line-opacity': [
+            'interpolate', ['linear'], ['zoom'],
+            7.0, 0,
+            8.5, 0.35,
+            10.0, 0.7
+          ]
+        },
+      });
+    }
+
+    if (map.getLayer('barangay-borders-layer')) map.removeLayer('barangay-borders-layer');
+    if (map.getSource('barangays-source')) map.removeSource('barangays-source');
+
+    if (barangaysGeoJson) {
+      map.addSource('barangays-source', {
+        type: 'geojson',
+        data: barangaysGeoJson
+      });
+      map.addLayer({
+        id: 'barangay-borders-layer',
+        type: 'line',
+        source: 'barangays-source',
+        paint: {
+          'line-color': '#38bdf8',
+          'line-width': 1,
+          'line-opacity': 0.6
+        }
+      });
+    }
+  }, [isMapLoaded, municitiesGeoJson, barangaysGeoJson, mapRef]);
 
   // ─── Update Boundary Outline & Inverted Dark Mask ──────────
   useEffect(() => {

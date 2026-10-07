@@ -36,7 +36,7 @@
     "next": "^16.3.4",
     "react": "^19.2.8",
     "react-cytoscapejs": "^2.0.0",
-    "react-dom": "^19.2.8",
+    "react-dom": "19.2.8",
     "react-sigma": "^1.2.35",
     "react-simple-maps": "^3.0.0",
     "recharts": "^3.10.1",

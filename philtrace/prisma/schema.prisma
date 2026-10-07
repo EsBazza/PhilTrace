@@ -152,6 +152,11 @@ model ContractDocument {
   projectId            String            @unique
   project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   sourcePdfUrl         String
+  contractAgreementUrl String?
+  noticeToProceedUrl   String?
+  noticeOfAwardUrl     String?
+  advertisementUrl     String?
+  biddersJson          String?
   contractorLegalName  String?
   contractorAddress    String?
   authorizedOfficer    String?

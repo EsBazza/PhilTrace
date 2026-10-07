@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { resolveProvinceAndRegion } from '@/lib/geo-spatial';
 import { cleanProjectTitle } from '@/lib/title-cleaner';
 import { computeRiskScore, computeAnomalyFlags } from '@/lib/anomaly-flags';
+import { fetchLiveContractFromScraper, syncScrapedContractToDb } from '@/lib/dpwh-scraper';
 
 async function fallbackIngestFromGeo(id: string) {
   try {
@@ -121,7 +122,7 @@ async function fallbackIngestFromGeo(id: string) {
 
     if (!newProject.contractDocument) {
       (newProject as any).contractDocument = {
-        sourcePdfUrl: `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(id)}`,
+        sourcePdfUrl: `https://www.dpwh.gov.ph/dpwh/business/procurement/civil-works/contract/${encodeURIComponent(id)}`,
       };
     }
 
@@ -159,6 +160,43 @@ export async function GET(
         },
       },
     });
+
+    const hasRealDoc =
+      project?.contractDocument?.sourcePdfUrl &&
+      !project.contractDocument.sourcePdfUrl.includes('transparency.dpwh.gov.ph') &&
+      (project.contractDocument.contractAgreementUrl ||
+        project.contractDocument.noticeToProceedUrl ||
+        project.contractDocument.noticeOfAwardUrl ||
+        project.contractDocument.advertisementUrl ||
+        project.contractDocument.sourcePdfUrl.endsWith('.pdf'));
+
+    // If project is missing or only has legacy placeholder URLs, run live DPWH scraper
+    if (!project || !hasRealDoc) {
+      const scraped = await fetchLiveContractFromScraper(id);
+      if (scraped && scraped.contractId) {
+        await syncScrapedContractToDb(scraped);
+        project = await prisma.project.findUnique({
+          where: { id },
+          include: {
+            province: {
+              include: { region: true },
+            },
+            comments: {
+              where: { phoneVerified: true },
+              orderBy: { createdAt: 'desc' },
+            },
+            reviews: {
+              orderBy: { createdAt: 'desc' },
+            },
+            contractDocument: {
+              include: {
+                engineerSignature: true,
+              },
+            },
+          },
+        });
+      }
+    }
 
     if (!project) {
       project = await fallbackIngestFromGeo(id);
@@ -201,7 +239,7 @@ export async function GET(
         },
       },
       contractDocument: project.contractDocument || {
-        sourcePdfUrl: `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(id)}`,
+        sourcePdfUrl: `https://www.dpwh.gov.ph/dpwh/business/procurement/civil-works/contract/${encodeURIComponent(id)}`,
       },
     };
 

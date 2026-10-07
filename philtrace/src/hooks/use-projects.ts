@@ -140,6 +140,11 @@ export interface ProjectDetailData extends ProjectWithRelations {
   contractDocument?: {
     id: string;
     sourcePdfUrl: string;
+    contractAgreementUrl?: string | null;
+    noticeToProceedUrl?: string | null;
+    noticeOfAwardUrl?: string | null;
+    advertisementUrl?: string | null;
+    biddersJson?: string | null;
     contractorLegalName?: string | null;
     tinNumber?: string | null;
     contractDurationDays?: number | null;

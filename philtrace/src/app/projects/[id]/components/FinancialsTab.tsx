@@ -45,11 +45,18 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
   const [boqData, setBoqData] = useState<BoqResponse | null>(null);
   const [isLoadingBoq, setIsLoadingBoq] = useState<boolean>(true);
 
-  // PDF verification & Wayback fallback
-  const rawPdfUrl = project.contractDocument?.sourcePdfUrl || '';
-
-
-  // 1. Fetch BOQ Items & Benchmarks
+  // Official DPWH Documents
+  const doc = project.contractDocument;
+  const verifiedPdfUrl =
+    doc?.contractAgreementUrl ||
+    doc?.noticeToProceedUrl ||
+    doc?.noticeOfAwardUrl ||
+    doc?.advertisementUrl ||
+    (doc?.sourcePdfUrl &&
+    !doc.sourcePdfUrl.includes('transparency.dpwh.gov.ph') &&
+    doc.sourcePdfUrl.startsWith('http')
+      ? doc.sourcePdfUrl
+      : '');
   useEffect(() => {
     const controller = new AbortController();
 
@@ -76,9 +83,6 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
 
     return () => controller.abort();
   }, [project.id]);
-
-  // Use the raw PDF URL directly without stalled async verification
-  const verifiedPdfUrl = rawPdfUrl;
 
   return (
     <div className="space-y-8">
@@ -186,16 +190,55 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <a
-              href={`https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-900/50"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>DPWH Transparency Portal ↗</span>
-            </a>
+          <div className="flex flex-wrap items-center gap-2">
+            {doc?.contractAgreementUrl && (
+              <a
+                href={doc.contractAgreementUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/50"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>Contract Agreement (PDF) ↗</span>
+              </a>
+            )}
+
+            {doc?.noticeToProceedUrl && (
+              <a
+                href={doc.noticeToProceedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-950/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-900/50"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Notice to Proceed ↗</span>
+              </a>
+            )}
+
+            {doc?.noticeOfAwardUrl && (
+              <a
+                href={doc.noticeOfAwardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-900/50"
+              >
+                <Archive className="h-3.5 w-3.5" />
+                <span>Notice of Award ↗</span>
+              </a>
+            )}
+
+            {doc?.advertisementUrl && (
+              <a
+                href={doc.advertisementUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-700"
+              >
+                <FileText className="h-3.5 w-3.5 text-slate-400" />
+                <span>Invitation to Bid ↗</span>
+              </a>
+            )}
+
             <a
               href={`https://www.dpwh.gov.ph/dpwh/business/procurement/civil-works/contract/${encodeURIComponent(project.id)}`}
               target="_blank"
@@ -205,17 +248,16 @@ export default function FinancialsTab({ project }: FinancialsTabProps) {
               <ExternalLink className="h-3.5 w-3.5" />
               <span>Civil Works Registry ↗</span>
             </a>
+
             {verifiedPdfUrl && (
-              <>
-                <a
-                  href={verifiedPdfUrl}
-                  download
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/50"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download Original DPWH Contract</span>
-                </a>
-              </>
+              <a
+                href={verifiedPdfUrl}
+                download
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-900/50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Download PDF</span>
+              </a>
             )}
           </div>
         </div>

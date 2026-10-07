@@ -104,40 +104,68 @@ export async function GET(req: Request) {
           boundaryFeature = feat;
         }
       }
-    } else if (type === 'city') {
-      const cDir = path.join(geoDir, 'raw_city');
-      if (fs.existsSync(cDir)) {
+    } else if (type === 'city' || type === 'municipality') {
+      const muniPath = path.join(geoDir, 'municities.json');
+      if (fs.existsSync(muniPath)) {
+        const d = JSON.parse(fs.readFileSync(muniPath, 'utf8'));
         const nameLower = name.toLowerCase().trim();
-
-        if (cityFile && fs.existsSync(path.join(cDir, cityFile))) {
-          targetFilePath = path.join(cDir, cityFile);
+        let feat = d.features.find((f: any) => {
+          const mName = (f.properties?.name || f.properties?.adm3_en || f.properties?.city_name || '').toLowerCase().trim();
+          return mName === nameLower;
+        });
+        if (!feat) {
+          feat = d.features.find((f: any) => {
+            const mName = (f.properties?.name || f.properties?.adm3_en || f.properties?.city_name || '').toLowerCase().trim();
+            return mName.includes(nameLower) || nameLower.includes(mName);
+          });
+        }
+        if (feat) {
+          boundaryFeature = feat;
+        }
+      }
+    } else if (type === 'barangay') {
+      const lookupPath = path.join(geoDir, '2023', 'muni_lookup.json');
+      let muniPsgc = '';
+      if (fs.existsSync(lookupPath)) {
+        const lookup = JSON.parse(fs.readFileSync(lookupPath, 'utf8'));
+        const mKey = (cityFile || '').replace(/[\.\-]/g, ' ').toLowerCase().trim();
+        if (lookup[mKey]) {
+          muniPsgc = lookup[mKey].psgc;
         } else {
-          const files = fs.readdirSync(cDir);
-          for (const f of files) {
-            const d = JSON.parse(fs.readFileSync(path.join(cDir, f), 'utf8'));
-            const cName = (d.properties?.city_name || '').toLowerCase().trim();
-            if (cName === nameLower) {
-              targetFilePath = path.join(cDir, f);
+          for (const k of Object.keys(lookup)) {
+            if (mKey && (mKey.includes(k) || k.includes(mKey))) {
+              muniPsgc = lookup[k].psgc;
               break;
             }
           }
         }
       }
-    } else if (type === 'barangay') {
-      const bDir = path.join(geoDir, 'raw_barangay');
-      if (fs.existsSync(bDir)) {
-        const nameLower = name.toLowerCase().trim();
-        const prefix = (cityFile || '').replace('.any.geo.json', '').replace('.geo.json', '');
 
-        if (prefix) {
-          const files = fs.readdirSync(bDir).filter((f) => f.startsWith(prefix));
-          for (const f of files) {
-            const d = JSON.parse(fs.readFileSync(path.join(bDir, f), 'utf8'));
-            const bName = (d.properties?.barangay_name || '').toLowerCase().trim();
-            if (bName === nameLower || f.toLowerCase().includes(nameLower.replace(/\s+/g, '-'))) {
-              targetFilePath = path.join(bDir, f);
-              break;
+      if (muniPsgc) {
+        const bgyCache = path.join(geoDir, '2023', 'municities', `${muniPsgc}.json`);
+        let bgyData = null;
+        if (fs.existsSync(bgyCache)) {
+          bgyData = JSON.parse(fs.readFileSync(bgyCache, 'utf8'));
+        } else {
+          try {
+            const res = await fetch(`https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/municities/medres/bgysubmuns-municity-${muniPsgc}.0.01.json`);
+            if (res.ok) {
+              bgyData = await res.json();
+              const dir = path.dirname(bgyCache);
+              if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+              fs.writeFileSync(bgyCache, JSON.stringify(bgyData));
             }
+          } catch {}
+        }
+
+        if (bgyData?.features) {
+          const nameLower = name.toLowerCase().trim();
+          const feat = bgyData.features.find((f: any) => {
+            const bName = (f.properties?.adm4_en || f.properties?.name || '').toLowerCase().trim();
+            return bName === nameLower || bName.includes(nameLower) || nameLower.includes(bName);
+          });
+          if (feat) {
+            boundaryFeature = feat;
           }
         }
       }

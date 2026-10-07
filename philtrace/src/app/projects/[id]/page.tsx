@@ -254,25 +254,74 @@ export default function ProjectDossierPage({ params }: PageProps) {
 
           {/* Action Buttons Bar */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
-            <a
-              href={project.contractDocument?.sourcePdfUrl || `https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition"
-            >
-              <FileText className="h-4 w-4" />
-              <span>View Full Contract</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            {project.contractDocument?.contractAgreementUrl ? (
+              <a
+                href={project.contractDocument.contractAgreementUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow hover:bg-emerald-500 transition"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Contract Agreement (PDF)</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : project.contractDocument?.sourcePdfUrl &&
+              !project.contractDocument.sourcePdfUrl.includes('transparency.dpwh.gov.ph') &&
+              project.contractDocument.sourcePdfUrl.startsWith('http') ? (
+              <a
+                href={project.contractDocument.sourcePdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition"
+              >
+                <FileText className="h-4 w-4" />
+                <span>View Full Contract (PDF)</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ) : (
+              <button
+                onClick={() => handleTabChange('financials')}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-cyan-500 transition"
+              >
+                <FileText className="h-4 w-4" />
+                <span>View Contract &amp; BOQ</span>
+              </button>
+            )}
+
+            {project.contractDocument?.noticeToProceedUrl && (
+              <a
+                href={project.contractDocument.noticeToProceedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-900/50 transition"
+              >
+                <FileText className="h-4 w-4 text-cyan-400" />
+                <span>Notice to Proceed</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+
+            {project.contractDocument?.noticeOfAwardUrl && (
+              <a
+                href={project.contractDocument.noticeOfAwardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-900/50 transition"
+              >
+                <FileText className="h-4 w-4 text-amber-400" />
+                <span>Notice of Award</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
 
             <a
-              href={`https://transparency.dpwh.gov.ph/?search=${encodeURIComponent(project.id)}`}
+              href={`https://www.dpwh.gov.ph/dpwh/business/procurement/civil-works/contract/${encodeURIComponent(project.id)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
             >
               <Building2 className="h-4 w-4 text-cyan-400" />
-              <span>DPWH Transparency Portal</span>
+              <span>DPWH Civil Works Registry</span>
               <ExternalLink className="h-3 w-3" />
             </a>
 
