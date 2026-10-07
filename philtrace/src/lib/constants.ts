@@ -41,6 +41,9 @@ export const DPWH_API_BASE = 'https://api.transparency.dpwh.gov.ph/projects';
 export const HF_DATASET_API = 'https://datasets-server.huggingface.co/rows';
 export const HF_DATASET_NAME = 'bettergovph/dpwh-transparency-data';
 
+/** Primary AI Model across the platform */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+
 /** Rate limiting constants */
 export const MAX_REPORTS_PER_PHONE_PER_PROJECT = 3;
 export const MAX_REPORTS_PER_IP_PER_DAY = 10;

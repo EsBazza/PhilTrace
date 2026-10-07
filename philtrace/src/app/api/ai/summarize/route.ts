@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
 import { getAllActiveFlags } from '@/lib/anomaly-flags';
 import { formatCurrency } from '@/lib/format';
+import { DEFAULT_GEMINI_MODEL } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY() });
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       contents: prompt,
     });
 

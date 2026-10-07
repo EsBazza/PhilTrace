@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
+import { DEFAULT_GEMINI_MODEL } from '@/lib/constants';
 import type { Prisma } from '@prisma/client';
 
 const SYSTEM_PROMPT = `You are PhilTrace AI, a civic transparency assistant for Philippine public infrastructure. You must use the provided tools to query the database. After retrieving data, answer ONLY using the project data provided. If the answer cannot be found, say: 'I do not have that information in the current database.' Never state amounts, names, contractor details, project statuses, or any facts that are not explicitly present in the data. Always include project IDs in your answers so users can click through to the full record.`;
@@ -63,40 +64,40 @@ async function executeTool(name: string, args: any) {
     
     if (args.province) {
       const provinces = await prisma.province.findMany({ where: { name: { contains: args.province, mode: 'insensitive' } } });
-      if (provinces.length > 0) where.provinceId = { in: provinces.map(p => p.id) };
+      if (provinces.length > 0) where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
     } else if (args.region) {
       const regions = await prisma.region.findMany({ where: { name: { contains: args.region, mode: 'insensitive' } } });
       if (regions.length > 0) {
-        const provinces = await prisma.province.findMany({ where: { regionId: { in: regions.map(r => r.id) } } });
-        where.provinceId = { in: provinces.map(p => p.id) };
+        const provinces = await prisma.province.findMany({ where: { regionId: { in: regions.map((r: { id: string }) => r.id) } } });
+        where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
       }
     }
     const projects = await prisma.project.findMany({ where, take: 20 });
-    sourceIds = projects.map(p => p.id);
+    sourceIds = projects.map((p: { id: string }) => p.id);
     result = { projects };
   } else if (name === 'getContractorStats') {
     const projects = await prisma.project.findMany({ where: { contractorRaw: { contains: args.contractor, mode: 'insensitive' } } });
-    sourceIds = projects.map(p => p.id).slice(0, 10);
+    sourceIds = projects.map((p: { id: string }) => p.id).slice(0, 10);
     result = {
       totalProjects: projects.length,
-      totalBudget: projects.reduce((acc, p) => acc + (p.budgetPHP || 0), 0),
-      flagged: projects.filter(p => p.flagOverdue || p.flagOverpaid || p.flagStalled || p.flagNeverStarted).length
+      totalBudget: projects.reduce((acc: number, p: { budgetPHP?: number | null }) => acc + (p.budgetPHP || 0), 0),
+      flagged: projects.filter((p: { flagOverdue?: boolean; flagOverpaid?: boolean; flagStalled?: boolean; flagNeverStarted?: boolean }) => p.flagOverdue || p.flagOverpaid || p.flagStalled || p.flagNeverStarted).length
     };
   } else if (name === 'getRegionalAnomalies') {
     const where: Prisma.ProjectWhereInput = { OR: [{ flagStalled: true }, { flagOverdue: true }, { flagOverpaid: true }, { flagNeverStarted: true }] };
     if (args.province) {
       const provinces = await prisma.province.findMany({ where: { name: { contains: args.province, mode: 'insensitive' } } });
-      if (provinces.length > 0) where.provinceId = { in: provinces.map(p => p.id) };
+      if (provinces.length > 0) where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
     } else if (args.region) {
       const regions = await prisma.region.findMany({ where: { name: { contains: args.region, mode: 'insensitive' } } });
       if (regions.length > 0) {
-        const provinces = await prisma.province.findMany({ where: { regionId: { in: regions.map(r => r.id) } } });
-        where.provinceId = { in: provinces.map(p => p.id) };
+        const provinces = await prisma.province.findMany({ where: { regionId: { in: regions.map((r: { id: string }) => r.id) } } });
+        where.provinceId = { in: provinces.map((p: { id: string }) => p.id) };
       }
     }
     const projects = await prisma.project.findMany({ where, take: 20 });
-    sourceIds = projects.map(p => p.id);
-    result = { anomalyCount: projects.length, projects: projects.map(p => ({id: p.id, name: p.name})) };
+    sourceIds = projects.map((p: { id: string }) => p.id);
+    result = { anomalyCount: projects.length, projects: projects.map((p: { id: string; name: string }) => ({id: p.id, name: p.name})) };
   }
   return { result, sourceIds };
 }
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY() });
     const chat = ai.chats.create({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       config: {
         systemInstruction: SYSTEM_PROMPT,
         tools: tools as any,

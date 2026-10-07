@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
 import { cleanContractorName } from '@/lib/format';
+import { DEFAULT_GEMINI_MODEL } from '@/lib/constants';
 
 export interface RawScrapedArticle {
   title: string;
@@ -219,7 +220,7 @@ async function generateAiSummary(title: string, description: string): Promise<st
     const userPrompt = `Title: ${title}\n\nDescription: ${description}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       contents: userPrompt,
       config: {
         systemInstruction: systemPrompt,

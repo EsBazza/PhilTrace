@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { prisma } from '../src/lib/prisma';
 import { env } from '../src/lib/env';
+import { DEFAULT_GEMINI_MODEL } from '../src/lib/constants';
 
 interface BOQItemExtracted {
   item_code: string;
@@ -68,7 +69,7 @@ export async function parseContractPdf(
     const base64Pdf = pdfBuffer.toString('base64');
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_GEMINI_MODEL,
       contents: [
         {
           role: 'user',

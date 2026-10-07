@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
-import { DEMO_PHONE_NUMBER, MAX_REPORTS_PER_PHONE_PER_PROJECT } from '@/lib/constants';
+import { DEMO_PHONE_NUMBER, MAX_REPORTS_PER_PHONE_PER_PROJECT, DEFAULT_GEMINI_MODEL } from '@/lib/constants';
 import { getAllActiveFlags } from '@/lib/anomaly-flags';
 
 interface ReportBody {
@@ -105,7 +105,7 @@ Current anomaly flags: ${flags.join(', ') || 'none'}`;
     try {
       const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY() });
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: DEFAULT_GEMINI_MODEL,
         contents: classificationPrompt,
       });
 
