@@ -169,9 +169,13 @@ function MapContent() {
       }
     }
     if (muniPsgc) {
-      fetch(`/geo/2023/municities/${muniPsgc}.json`)
-        .then((res) => res.ok ? res.json() : null)
-        .then((data) => setBarangaysGeoJson(data))
+      fetch(`/api/locations/barangays?cityPsgc=${muniPsgc}&municipality=${encodeURIComponent(drillDown.municipality)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.geojson) {
+            setBarangaysGeoJson(data.geojson);
+          }
+        })
         .catch(console.error);
     }
   }, [drillDown.municipality, drillDown.cityFile, muniLookup]);
@@ -758,6 +762,7 @@ function MapContent() {
       name: boundaryName,
     });
     if (cityFile) params.set('cityFile', cityFile);
+    if (drillDown.municipality) params.set('municipality', drillDown.municipality);
 
     fetch(`/api/locations/boundary?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))

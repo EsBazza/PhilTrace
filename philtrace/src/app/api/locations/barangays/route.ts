@@ -79,7 +79,7 @@ export async function GET(req: Request) {
     barangays.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
     return Response.json(
-      { barangays, total: barangays.length },
+      { barangays, geojson: bgyData, total: barangays.length },
       {
         headers: {
           'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',

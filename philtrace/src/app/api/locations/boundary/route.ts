@@ -55,6 +55,7 @@ export async function GET(req: Request) {
     const name = searchParams.get('name') || '';
     const file = (searchParams.get('file') || '').replace(/[\/\\]/g, '');
     const cityFile = (searchParams.get('cityFile') || '').replace(/[\/\\]/g, '');
+    const municipality = (searchParams.get('municipality') || '').trim();
 
     const geoDir = path.join(process.cwd(), 'public', 'geo');
     let targetFilePath = '';
@@ -128,7 +129,7 @@ export async function GET(req: Request) {
       let muniPsgc = '';
       if (fs.existsSync(lookupPath)) {
         const lookup = JSON.parse(fs.readFileSync(lookupPath, 'utf8'));
-        const mKey = (cityFile || '').replace(/[\.\-]/g, ' ').toLowerCase().trim();
+        const mKey = (municipality || cityFile || '').replace(/[\.\-]/g, ' ').toLowerCase().trim();
         if (lookup[mKey]) {
           muniPsgc = lookup[mKey].psgc;
         } else {
