@@ -81,33 +81,25 @@ function MapContent() {
       .catch(console.error);
   }, [selectedProjectId, isMapLoaded, mapRef, flyTo]);
 
-  // ─── Load choropleth + boundaries ────────────────
+  // ─── Load choropleth + boundaries in parallel ──────────
   useEffect(() => {
-    fetch('/api/map/choropleth')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => { if (d?.data) setChoroplethData(d.data); })
-      .catch(console.error);
-
-    fetch('/geo/provinces.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setProvinceGeoJson(data); })
-      .catch(console.error);
-
-    fetch('/geo/regions.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setRegionGeoJson(data); })
-      .catch(console.error);
-
-    fetch('/geo/municities.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setMunicitiesGeoJson(data); })
-      .catch(console.error);
-
-    fetch('/geo/2023/muni_lookup.json')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { if (data) setMuniLookup(data); })
+    Promise.all([
+      fetch('/api/map/choropleth').then((r) => (r.ok ? r.json() : null)),
+      fetch('/geo/provinces.json').then((r) => (r.ok ? r.json() : null)),
+      fetch('/geo/regions.json').then((r) => (r.ok ? r.json() : null)),
+      fetch('/geo/municities.json').then((r) => (r.ok ? r.json() : null)),
+      fetch('/geo/2023/muni_lookup.json').then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([choropleth, provinces, regions, municities, muniLookupData]) => {
+        if (choropleth?.data) setChoroplethData(choropleth.data);
+        if (provinces) setProvinceGeoJson(provinces);
+        if (regions) setRegionGeoJson(regions);
+        if (municities) setMunicitiesGeoJson(municities);
+        if (muniLookupData) setMuniLookup(muniLookupData);
+      })
       .catch(console.error);
   }, []);
+
 
   // ─── Apply filters to Supercluster when drill-down changes ─
   useEffect(() => {

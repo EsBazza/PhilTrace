@@ -2,6 +2,10 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 
+// Cache this route on the server for 10 minutes
+export const revalidate = 600;
+
+
 interface ChoroplethItem {
   psgcCode: string;
   name: string;

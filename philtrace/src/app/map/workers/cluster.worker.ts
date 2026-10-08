@@ -10,59 +10,114 @@ let metadata: {
   statusLabels: string[];
 } | null = null;
 
+// ─── Transform simple full-schema features into compact worker format ──────
+function transformSimpleFeatures(features: any[]): any[] {
+  return features.map((f: any) => {
+    const p = f.properties || {};
+    const flagOverpaid = Boolean(p.flagOverpaid);
+    const flagStalled = Boolean(p.flagStalled);
+    const flagOverdue = Boolean(p.flagOverdue);
+    const flagNeverStarted = Boolean(p.flagNeverStarted);
+    const flagPaymentPending = Boolean(p.flagPaymentPending);
+
+    const k = (flagOverpaid || flagStalled) ? 2 : (flagOverdue || flagNeverStarted) ? 1 : 0;
+    const fBit =
+      (flagOverpaid ? 1 : 0) |
+      (flagStalled ? 2 : 0) |
+      (flagNeverStarted ? 4 : 0) |
+      (flagOverdue ? 8 : 0) |
+      (flagPaymentPending ? 16 : 0);
+
+    return {
+      type: 'Feature',
+      geometry: f.geometry,
+      properties: {
+        i: p.id || p.i,
+        n: p.name || p.n,
+        b: (p.budgetPHP || p.b || 0) / 1000,
+        g: p.progress ?? p.g ?? 0,
+        c: p.category || p.c,
+        k,
+        f: fBit,
+        fo: flagOverpaid ? 1 : undefined,
+        fs: flagStalled ? 1 : undefined,
+        fd: flagOverdue ? 1 : undefined,
+        fn: flagNeverStarted ? 1 : undefined,
+        // No r/v (region/province indices) — filtering won't work until full load
+      },
+    };
+  });
+}
+
+// ─── Build and load supercluster ─────────────────────────────────────────────
+function buildSupercluster(features: any[]) {
+  supercluster = new (Supercluster as any)({
+    radius: 75,
+    maxZoom: 15,
+    minZoom: 0,
+    minPoints: 2,
+    map: (props: any) => {
+      const isRed = props.k === 2;
+      const isAmber = props.k === 1;
+      const isFlagged = (props.f || 0) > 0;
+      return {
+        totalBudget: (props.b || 0) * 1000,
+        totalProjects: 1,
+        flaggedCount: isFlagged ? 1 : 0,
+        redCount: isRed ? 1 : 0,
+        amberCount: isAmber ? 1 : 0,
+        statusCounts: props.s !== undefined ? { [props.s]: 1 } : {},
+        categoryCounts: props.c ? { [props.c]: 1 } : {},
+      };
+    },
+    reduce: (accumulated: any, props: any) => {
+      accumulated.totalBudget += props.totalBudget;
+      accumulated.totalProjects += props.totalProjects;
+      accumulated.flaggedCount += props.flaggedCount;
+      accumulated.redCount += props.redCount;
+      accumulated.amberCount += props.amberCount;
+
+      if (props.statusCounts) {
+        for (const s in props.statusCounts) {
+          accumulated.statusCounts[s] = (accumulated.statusCounts[s] || 0) + props.statusCounts[s];
+        }
+      }
+
+      if (props.categoryCounts) {
+        for (const cat in props.categoryCounts) {
+          accumulated.categoryCounts[cat] = (accumulated.categoryCounts[cat] || 0) + props.categoryCounts[cat];
+        }
+      }
+    },
+  });
+
+  supercluster.load(features);
+}
+
 self.onmessage = function (e) {
   const { type, payload } = e.data;
 
   switch (type) {
+    // ── Phase 1: Fast initial load from initial_clusters.json (simple schema) ─
+    case 'loadSimple': {
+      const rawFeatures: any[] = payload.features || [];
+      masterFeatures = transformSimpleFeatures(rawFeatures);
+      currentFeatures = masterFeatures;
+      metadata = null; // No metadata yet — geographic filters disabled
+
+      buildSupercluster(currentFeatures);
+      self.postMessage({ type: 'ready', totalPoints: currentFeatures.length, phase: 'initial' });
+      break;
+    }
+
+    // ── Phase 2: Full upgrade from all_projects.json (compact schema + metadata) ─
     case 'load': {
       masterFeatures = payload.features || [];
       currentFeatures = masterFeatures;
       metadata = payload.metadata || null;
 
-      supercluster = new (Supercluster as any)({
-        radius: 75,
-        maxZoom: 15,
-        minZoom: 0,
-        minPoints: 2,
-        map: (props: any) => {
-          const isRed = props.k === 2;
-          const isAmber = props.k === 1;
-          const isFlagged = (props.f || 0) > 0;
-          return {
-            totalBudget: (props.b || 0) * 1000,
-            totalProjects: 1,
-            flaggedCount: isFlagged ? 1 : 0,
-            redCount: isRed ? 1 : 0,
-            amberCount: isAmber ? 1 : 0,
-            statusCounts: props.s !== undefined ? { [props.s]: 1 } : {},
-            categoryCounts: props.c ? { [props.c]: 1 } : {},
-          };
-        },
-        reduce: (accumulated: any, props: any) => {
-          accumulated.totalBudget += props.totalBudget;
-          accumulated.totalProjects += props.totalProjects;
-          accumulated.flaggedCount += props.flaggedCount;
-          accumulated.redCount += props.redCount;
-          accumulated.amberCount += props.amberCount;
-
-          if (props.statusCounts) {
-            for (const s in props.statusCounts) {
-              accumulated.statusCounts[s] = (accumulated.statusCounts[s] || 0) + props.statusCounts[s];
-            }
-          }
-
-          if (props.categoryCounts) {
-            for (const cat in props.categoryCounts) {
-              accumulated.categoryCounts[cat] = (accumulated.categoryCounts[cat] || 0) + props.categoryCounts[cat];
-            }
-          }
-        },
-      });
-
-      if (supercluster) {
-        supercluster.load(currentFeatures);
-      }
-      self.postMessage({ type: 'ready', totalPoints: currentFeatures.length });
+      buildSupercluster(currentFeatures);
+      self.postMessage({ type: 'ready', totalPoints: currentFeatures.length, phase: 'full' });
       break;
     }
 
