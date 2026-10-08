@@ -33,9 +33,7 @@ export function Header() {
           <Link href="/contractors" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
             Contractors
           </Link>
-          <Link href="/engineers" className="hover:text-[#ffb241] transition-colors whitespace-nowrap">
-            Engineers
-          </Link>
+
         </nav>
 
         {/* Right: Search Input */}

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { QueryProvider } from '@/lib/query-client';
 import { Header } from '@/components/header';
-import { Chatbot } from '@/components/chatbot';
 import { MainLayoutWrapper } from '@/components/main-layout-wrapper';
 
 export const metadata: Metadata = {
@@ -23,7 +22,6 @@ export default function RootLayout({
           <MainLayoutWrapper>
             {children}
           </MainLayoutWrapper>
-          <Chatbot />
         </QueryProvider>
       </body>
     </html>
