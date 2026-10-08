@@ -39,6 +39,12 @@ export default function ContractorsPage() {
   const [activeView, setActiveView] = useState<'cards' | 'network'>('cards');
   const [page, setPage] = useState(1);
 
+  // Reset page when filter or search changes
+  const handleFilterChange = (f: 'all' | 'clean' | 'overdue' | 'highrisk') => {
+    setFilterRisk(f);
+    setPage(1);
+  };
+
   // Query paginated contractors for leaderboard
   const { data: contractorsData, isLoading: isTableLoading } = useContractors({
     q: searchTerm.trim() || undefined,
@@ -46,16 +52,10 @@ export default function ContractorsPage() {
     limit: 12,
     sort: sortBy,
     order: sortOrder,
+    risk: filterRisk,
   });
 
-  const rawContractorsList = contractorsData?.contractors || [];
-  const contractorsList = rawContractorsList.filter((c) => {
-    if (filterRisk === 'clean') return c.overdueCount === 0 && c.terminatedCount === 0;
-
-    if (filterRisk === 'overdue') return c.overdueCount > 0 && c.overdueCount <= 3;
-    if (filterRisk === 'highrisk') return c.overdueCount > 3 || c.terminatedCount > 0;
-    return true;
-  });
+  const contractorsList = contractorsData?.contractors || [];
 
   const totalPages = contractorsData?.pagination?.totalPages || 1;
 
@@ -123,7 +123,7 @@ export default function ContractorsPage() {
             <div className="flex items-center bg-white/10 p-1.5 rounded-full border border-white/20 backdrop-blur-md text-xs font-bold shadow-lg">
               <span className="px-3.5 text-white/70 text-[11px] font-black uppercase tracking-wider">Show:</span>
               <button
-                onClick={() => setFilterRisk('all')}
+                onClick={() => handleFilterChange('all')}
                 className={`px-4 py-2 rounded-full transition-all duration-200 ${
                   filterRisk === 'all'
                     ? 'bg-white text-[#01367d] font-black shadow-md scale-105'
@@ -133,7 +133,7 @@ export default function ContractorsPage() {
                 All
               </button>
               <button
-                onClick={() => setFilterRisk('clean')}
+                onClick={() => handleFilterChange('clean')}
                 className={`px-4 py-2 rounded-full transition-all duration-200 ${
                   filterRisk === 'clean'
                     ? 'bg-emerald-500 text-white font-black shadow-md scale-105'
@@ -143,7 +143,7 @@ export default function ContractorsPage() {
                 Clean ✓
               </button>
               <button
-                onClick={() => setFilterRisk('overdue')}
+                onClick={() => handleFilterChange('overdue')}
                 className={`px-4 py-2 rounded-full transition-all duration-200 ${
                   filterRisk === 'overdue'
                     ? 'bg-[#ffb241] text-[#01367d] font-black shadow-md scale-105'
@@ -153,7 +153,7 @@ export default function ContractorsPage() {
                 Pending ⚠️
               </button>
               <button
-                onClick={() => setFilterRisk('highrisk')}
+                onClick={() => handleFilterChange('highrisk')}
                 className={`px-4 py-2 rounded-full transition-all duration-200 ${
                   filterRisk === 'highrisk'
                     ? 'bg-[#a80101] text-white font-black shadow-md scale-105'

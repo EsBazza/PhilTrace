@@ -10,11 +10,24 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 100);
     const sort = searchParams.get('sort') ?? 'totalValuePHP';
     const order = searchParams.get('order') ?? 'desc';
+    const risk = searchParams.get('risk'); // 'clean' | 'overdue' | 'highrisk'
 
     const where: Prisma.ContractorWhereInput = {};
 
     if (q) {
       where.name = { contains: q, mode: 'insensitive' };
+    }
+
+    if (risk === 'clean') {
+      where.overdueCount = { equals: 0 };
+      where.terminatedCount = { equals: 0 };
+    } else if (risk === 'overdue') {
+      where.overdueCount = { gte: 1, lte: 3 };
+    } else if (risk === 'highrisk') {
+      where.OR = [
+        { overdueCount: { gt: 3 } },
+        { terminatedCount: { gt: 0 } },
+      ];
     }
 
     const validSortFields = ['totalValuePHP', 'totalContracts', 'avgProgress', 'overdueCount', 'name'];

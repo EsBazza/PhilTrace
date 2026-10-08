@@ -197,6 +197,7 @@ export interface ContractorsParams {
   limit?: number;
   sort?: string;
   order?: string;
+  risk?: 'all' | 'clean' | 'overdue' | 'highrisk';
 }
 
 export function useContractors(params: ContractorsParams = {}) {
@@ -207,6 +208,7 @@ export function useContractors(params: ContractorsParams = {}) {
   if (params.limit) searchParams.set('limit', params.limit.toString());
   if (params.sort) searchParams.set('sort', params.sort);
   if (params.order) searchParams.set('order', params.order);
+  if (params.risk && params.risk !== 'all') searchParams.set('risk', params.risk);
 
   return useQuery<ContractorListResponse>({
     queryKey: ['contractors', params],
