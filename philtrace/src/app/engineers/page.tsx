@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import cytoscape from 'cytoscape';
-import { Header } from '@/components/header';
 
 export default function EngineersPage() {
   const [data, setData] = useState<{ nodes: any[]; edges: any[] } | null>(null);
@@ -113,8 +112,6 @@ export default function EngineersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <Header />
-
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
           <div>
