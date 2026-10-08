@@ -74,6 +74,7 @@ export default function ContractorsPage() {
   if (graphData?.nodes) {
     graphData.nodes.forEach((n: any) => {
       const d = n.data;
+      if (!d || d.terminatedCount === undefined) return; // skip non-contractor nodes
       if (d.terminatedCount > 0) summaryStats.terminated++;
       else if (d.overdueCount > 0) summaryStats.overdue++;
       else summaryStats.clean++;
