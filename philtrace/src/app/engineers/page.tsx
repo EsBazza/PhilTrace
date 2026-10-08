@@ -145,6 +145,14 @@ export default function EngineersPage() {
             <div className="h-full flex items-center justify-center text-slate-400 text-sm">
               Loading District Engineer Signature Graph...
             </div>
+          ) : !data?.nodes?.length ? (
+            <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
+              <span className="text-5xl">📋</span>
+              <p className="text-slate-300 font-semibold text-lg">No Engineer Signature Data Yet</p>
+              <p className="text-slate-500 text-sm max-w-md">
+                Engineer signature records are extracted from DPWH contract PDFs. Once contract documents are parsed, the network graph will appear here.
+              </p>
+            </div>
           ) : (
             <div ref={containerRef} className="h-full w-full" />
           )}
